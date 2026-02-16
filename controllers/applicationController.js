@@ -72,7 +72,7 @@ exports.submitApplication = async (req, res) => {
     const analysis = await analyzeCurriculum(pdfData.text, competencies);
 
     // Generate and upload filled Level 1 Excel
-    const { fillAndUploadLevel1Excel } = require('../utils/excelFiller');
+    // const { fillAndUploadLevel1Excel } = require('../utils/excelFiller');
     let filledExcelResult = null;
     try {
       filledExcelResult = await fillAndUploadLevel1Excel(

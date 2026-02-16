@@ -2,7 +2,7 @@ const express = require('express'); // import express for node.js
 const cors = require('cors'); // import crosss-origin resource sharing; allow API to accept requests from different domains
 const path = require('path'); // import node.js path module
 const rateLimit = require('express-rate-limit'); // import rate limiting middleware; prevent abuse of API (max request for given time from an IP address)
-const reviewerRoutes = require('./routes/reviewer'); // import routes for reviewer later **TODO**
+// const reviewerRoutes = require('./routes/reviewer'); // import routes for reviewer later **TODO**
 require('dotenv').config();
 
 // Initialize Firebase
@@ -55,7 +55,7 @@ app.use('/api/applications', require('./routes/applications'));
 // API routes as well
 // Reviewer routes
 // Method (eg. POST, GET) /api/reviewer/...
-app.use('/api/reviewer', require('./routes/reviewer'));
+// app.use('/api/reviewer', require('./routes/reviewer')); // **TODO** add later
 
 // ============================================
 // FRONTEND ROUTES

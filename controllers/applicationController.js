@@ -10,7 +10,8 @@ exports.submitApplication = async (req, res) => {
   let tempFilePath = null;
   
   try {
-    const { providerName, organizationName, email } = req.body;
+    const { providerName, organizationName } = req.body;
+    const email = req.user ? req.user.email : req.body.email;
     const pdfFile = req.file;
     
     if (!providerName || !organizationName || !email) {
@@ -47,8 +48,14 @@ exports.submitApplication = async (req, res) => {
     
     console.log(`   File size: ${getFileSizeMB(pdfBuffer)} MB`);
     
+    let userId = null;
+    if (req.user) {
+      userId = req.user.uid; 
+    }
+
     // Step 2: Create application record first (to get ID)
     const application = await createApplication({
+      userId,
       providerName,
       organizationName,
       email,
@@ -305,6 +312,29 @@ exports.getAllApplications = async (req, res) => {
       applications
     });
     
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+};
+
+/**
+ * Get applications for current user (applicant only)
+ */
+exports.getMyApplications = async (req, res) => {
+  try {
+    const userId = req.user.uid;
+    
+    const applications = await getAllApplications();
+    const myApplications = applications.filter(app => app.userId === userId);
+    
+    res.json({
+      success: true,
+      count: myApplications.length,
+      applications: myApplications
+    });
   } catch (error) {
     res.status(500).json({
       success: false,

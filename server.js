@@ -2,7 +2,6 @@ const express = require('express'); // import express for node.js
 const cors = require('cors'); // import crosss-origin resource sharing; allow API to accept requests from different domains
 const path = require('path'); // import node.js path module
 const rateLimit = require('express-rate-limit'); // import rate limiting middleware; prevent abuse of API (max request for given time from an IP address)
-// const reviewerRoutes = require('./routes/reviewer'); // import routes for reviewer later **TODO**
 require('dotenv').config();
 
 // Initialize Firebase
@@ -48,14 +47,15 @@ app.use((req, res, next) => {
 // ROUTES
 // ============================================
 
-// API routes
-// Method (eg. POST, GET) /api/applications/...
+// Authentication routes
+app.use('/api/auth', require('./routes/auth'));
+
+
+// Application routes
 app.use('/api/applications', require('./routes/applications'));
 
-// API routes as well
 // Reviewer routes
-// Method (eg. POST, GET) /api/reviewer/...
-// app.use('/api/reviewer', require('./routes/reviewer')); // **TODO** add later
+app.use('/api/reviewer', require('./routes/reviewer'));
 
 // ============================================
 // FRONTEND ROUTES
@@ -63,13 +63,19 @@ app.use('/api/applications', require('./routes/applications'));
 // ============================================
 
 // index.html; training provider application form (main page)
+// app.get('/', (req, res) => {
+//   res.sendFile(path.join(__dirname, 'public', 'index.html'));
+// });
+
+// at root, direct to landing page
 app.get('/', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'index.html'));
+  res.sendFile(path.join(__dirname, 'public', 'landing.html'));  // 
 });
+
 
 // reviewer.html; WorkSafeBC reviewer dashboard to review applications
 app.get('/reviewer', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'reviewer.html'));
+  res.sendFile(path.join(__dirname, 'public', 'reviewer-index.html'));
 });
 
 // ============================================
@@ -103,8 +109,6 @@ app.listen(PORT, () => {
   console.log(`Training Provider Application Server`);
   console.log('========================================');
   console.log(`Server running on: http://localhost:${PORT}`);
-  console.log(`Provider Form: http://localhost:${PORT}`);
-  console.log(`Reviewer Dashboard: http://localhost:${PORT}/reviewer`);
   console.log('========================================');
   console.log('');
 });

@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const multer = require('multer');
 const applicationController = require('../controllers/applicationController');
+const { requireAuth } = require('../middleware/auth');
 
 // Configure multer for file uploads
 const upload = multer({
@@ -19,8 +20,9 @@ const upload = multer({
 });
 
 // Routes
-router.post('/submit', upload.single('pdf'), applicationController.submitApplication);
+router.post('/submit', requireAuth, upload.single('pdf'), applicationController.submitApplication);
 router.post('/revise/:id', upload.single('pdf'), applicationController.reviseApplication);
+router.get('/my-applications', requireAuth, applicationController.getMyApplications);
 router.get('/:id', applicationController.getApplication);
 router.get('/', applicationController.getAllApplications);
 

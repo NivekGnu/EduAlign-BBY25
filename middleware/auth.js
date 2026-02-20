@@ -1,3 +1,6 @@
+// Authentication middleware
+// for verifying user is logged in, or verifying user has employee role
+
 const { admin } = require('../utils/firebase');
 
 async function requireAuth(req, res, next) {
@@ -30,22 +33,23 @@ function requireEmployee(req, res, next) {
   next();
 }
 
-async function optionalAuth(req, res, next) {
-  try {
-    const authHeader = req.headers.authorization;
-    if (authHeader && authHeader.startsWith('Bearer ')) {
-      const idToken = authHeader.split('Bearer ')[1];
-      const decodedToken = await admin.auth().verifyIdToken(idToken);
-      req.user = {
-        uid: decodedToken.uid,
-        email: decodedToken.email,
-        role: decodedToken.role || 'applicant'
-      };
-    }
-  } catch (error) {
-    // Silently fail
-  }
-  next();
-}
+// NOT USED AT THE MOMENT -clinton
+// async function optionalAuth(req, res, next) {
+//   try {
+//     const authHeader = req.headers.authorization;
+//     if (authHeader && authHeader.startsWith('Bearer ')) {
+//       const idToken = authHeader.split('Bearer ')[1];
+//       const decodedToken = await admin.auth().verifyIdToken(idToken);
+//       req.user = {
+//         uid: decodedToken.uid,
+//         email: decodedToken.email,
+//         role: decodedToken.role || 'applicant'
+//       };
+//     }
+//   } catch (error) {
+//     // Silently fail
+//   }
+//   next();
+// }
 
 module.exports = { requireAuth, requireEmployee, optionalAuth };

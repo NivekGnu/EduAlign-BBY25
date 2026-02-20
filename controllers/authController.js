@@ -1,5 +1,9 @@
+// Handles authentication logic
+
 const { admin } = require('../utils/firebase');
 
+// sets the user role in firebase custom claims
+// by default, the role is 'applicant' instead of 'employee'
 exports.setUserRole = async (req, res) => {
   try {
     const { uid } = req.body;
@@ -22,6 +26,7 @@ exports.setUserRole = async (req, res) => {
   }
 };
 
-exports.getUserInfo = async (req, res) => {
-  res.json({ success: true, user: req.user });
-};
+// NOT USED AT THE MOMENT -clinton
+// exports.getUserInfo = async (req, res) => {
+//   res.json({ success: true, user: req.user });
+// };

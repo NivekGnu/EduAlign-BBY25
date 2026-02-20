@@ -1,3 +1,6 @@
+// this code is only used in the terminal
+// allows us to change a user's role from applicant to employee
+
 const { admin } = require('./firebase');
 require('dotenv').config();
 

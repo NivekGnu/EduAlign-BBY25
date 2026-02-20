@@ -1,3 +1,5 @@
+// Handles Firestore: CRUD for database (NoSQL)
+
 const { db, FieldValue } = require('./firebase');
 
 /**

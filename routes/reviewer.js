@@ -1,30 +1,3 @@
-// const express = require('express');
-// const router = express.Router();
-// const reviewerController = require('../controllers/reviewerController');
-
-// // Simple password authentication middleware
-// function authenticate(req, res, next) {
-//   const { password } = req.body;
-  
-//   if (password === process.env.REVIEWER_PASSWORD) {
-//     next();
-//   } else {
-//     res.status(401).json({ 
-//       success: false, 
-//       error: 'Invalid password' 
-//     });
-//   }
-// }
-
-// // Routes -- KEEP ORDER
-// router.post('/login', reviewerController.login);
-// router.post('/applications', authenticate, reviewerController.getApplications);
-// router.get('/applications/:id', reviewerController.getApplicationDetails); 
-// router.patch('/applications/:id/status', authenticate, reviewerController.updateStatus);
-// router.get('/applications/:id/pdf/:version', authenticate, reviewerController.getPdfUrl);
-
-// module.exports = router; 
-
 const express = require('express');
 const router = express.Router();
 const reviewerController = require('../controllers/reviewerController');

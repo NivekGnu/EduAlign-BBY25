@@ -1,5 +1,5 @@
+// Handles Firebase File Storage: upload to storage, download as buffer, remove from storage, signed URL generation, and listing all files for an application
 // Wrapper functions for Firebase Cloud Storage operations.
-// Handles file upload, download, deletion, and URL generation.
 //
 // File organization structure:
 // applications/{applicationId}/{timestamp}_{filename}

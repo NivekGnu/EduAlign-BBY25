@@ -2,32 +2,6 @@ const { getApplicationById, getAllApplications, updateApplication, getStats } = 
 const { getSignedUrl } = require('../utils/firebaseStorage');
 
 /**
- * Login (simple password check)
- */
-exports.login = async (req, res) => {
-  try {
-    const { password } = req.body;
-    
-    if (password === process.env.REVIEWER_PASSWORD) {
-      res.json({
-        success: true,
-        message: 'Login successful'
-      });
-    } else {
-      res.status(401).json({
-        success: false,
-        error: 'Invalid password'
-      });
-    }
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      error: error.message
-    });
-  }
-};
-
-/**
  * Get all applications for reviewer dashboard
  */
 exports.getApplications = async (req, res) => {
@@ -92,51 +66,6 @@ exports.updateStatus = async (req, res) => {
     res.json({
       success: true,
       application: updatedApp
-    });
-    
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      error: error.message
-    });
-  }
-};
-
-/**
- * Get signed URL for PDF download
- */
-exports.getPdfUrl = async (req, res) => {
-  try {
-    const { id, version } = req.params;
-    
-    const application = await getApplicationById(id);
-    
-    if (!application) {
-      return res.status(404).json({
-        success: false,
-        error: 'Application not found'
-      });
-    }
-    
-    const versionIndex = parseInt(version) - 1;
-    
-    if (versionIndex < 0 || versionIndex >= application.pdfFiles.length) {
-      return res.status(404).json({
-        success: false,
-        error: 'PDF version not found'
-      });
-    }
-    
-    const pdfFile = application.pdfFiles[versionIndex];
-    
-    // Generate signed URL (valid for 1 hour)
-    const signedUrl = await getSignedUrl(pdfFile.storagePath, 1); // 1 day
-    
-    res.json({
-      success: true,
-      url: signedUrl,
-      filename: pdfFile.filename,
-      expiresIn: 3600
     });
     
   } catch (error) {

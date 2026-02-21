@@ -20,11 +20,9 @@ const upload = multer({
 });
 
 // Routes
-router.post('/submit', requireAuth, upload.single('pdf'), applicationController.submitApplication);
-router.post('/revise/:id', upload.single('pdf'), applicationController.reviseApplication);
-router.get('/my-applications', requireAuth, applicationController.getMyApplications);
-router.get('/my-applications/:id', requireAuth, applicationController.getMyApplicationDetails);
-router.get('/:id', applicationController.getApplication);
-router.get('/', applicationController.getAllApplications);
+router.post('/submit', requireAuth, upload.single('pdf'), applicationController.submitApplication); // submits an applicant's application
+// router.post('/revise/:id', upload.single('pdf'), applicationController.reviseApplication); // may use later -clinton
+router.get('/my-applications', requireAuth, applicationController.getMyApplications); // allow applicant to view all their applications
+router.get('/my-applications/:id', requireAuth, applicationController.getMyApplicationDetails); // allow applicant to see details about their application
 
 module.exports = router;

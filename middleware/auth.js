@@ -1,8 +1,9 @@
-// Authentication middleware
+// Authentication middleware for routes
 // for verifying user is logged in, or verifying user has reviewer role
 
 const { admin } = require('../utils/firebase');
 
+// requires user to be logged in
 async function requireAuth(req, res, next) {
   try {
     const authHeader = req.headers.authorization;
@@ -26,6 +27,7 @@ async function requireAuth(req, res, next) {
   }
 }
 
+// requires user to have role reviewer
 function requireReviewerRole(req, res, next) {
   if (!req.user || req.user.role !== 'reviewer') {
     return res.status(403).json({ success: false, error: 'Reviewer access required' });
@@ -33,4 +35,4 @@ function requireReviewerRole(req, res, next) {
   next();
 }
 
-module.exports = { requireAuth, requireReviewerRole: requireReviewerRole };
+module.exports = { requireAuth, requireReviewerRole };

@@ -66,7 +66,7 @@ exports.submitApplication = async (req, res) => {
       missingCriteria: []
     });
     
-    console.log(`   Application ID: ${application.applicationId}`);
+    console.log(`Application ID: ${application.applicationId}`);
     
     // Step 3: Upload to Firebase Storage
     const storageResult = await uploadToStorage(pdfBuffer, pdfFile.originalname, application.id);
@@ -88,7 +88,7 @@ exports.submitApplication = async (req, res) => {
         application._id.toString()
       );
     } catch (excelErr) {
-      console.error('   Warning: Failed to generate filled Excel:', excelErr);
+      console.error('Warning: Failed to generate filled Excel:', excelErr);
       // Optional continue or throw if you want to block submission
     }
 
@@ -117,7 +117,7 @@ exports.submitApplication = async (req, res) => {
     const updatedApp = await updateApplication(application.id, updateData);
     
     console.log('');
-    console.log('✅ Application submitted successfully');
+    console.log('Application submitted successfully');
     console.log('========================================');
     console.log('');
     
@@ -157,6 +157,7 @@ exports.submitApplication = async (req, res) => {
   }
 };
 
+// may use later -clinton
 // Revise an existing application with a new PDF version
 exports.reviseApplication = async (req, res) => {
   let tempFilePath = null;

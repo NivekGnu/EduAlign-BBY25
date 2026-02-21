@@ -142,10 +142,9 @@
   async function loadApplications() {
     try {
       const response = await fetch('/api/reviewer/applications', {
-        method: 'POST',
+        method: 'GET',
         headers: {
-          'Authorization': `Bearer ${authToken}`,
-          'Content-Type': 'application/json'
+          'Authorization': `Bearer ${authToken}`
         }
       });
       

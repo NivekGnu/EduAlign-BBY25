@@ -33,4 +33,4 @@ function requireReviewerRole(req, res, next) {
   next();
 }
 
-module.exports = { requireAuth, requireReviewerRole: requireReviewerRole, optionalAuth };
+module.exports = { requireAuth, requireReviewerRole: requireReviewerRole };

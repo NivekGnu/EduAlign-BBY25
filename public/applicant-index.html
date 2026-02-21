@@ -104,7 +104,7 @@
         const tokenResult = await user.getIdTokenResult(true);
         const role = tokenResult.claims.role || 'applicant';
 
-        if (role === 'employee') {
+        if (role === 'reviewer') {
           window.location.replace('/');
           return;
         }

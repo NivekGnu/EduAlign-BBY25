@@ -22,7 +22,7 @@
         const tokenResult = await user.getIdTokenResult(true); // force refresh to catch latest claims
         const role = tokenResult.claims.role || 'applicant';
 
-        if (role === 'employee') {
+        if (role === 'reviewer') {
           window.location.replace('/reviewer-index.html');
         } else {
           window.location.replace('/applicant-index.html');

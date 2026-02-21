@@ -1,4 +1,4 @@
-//Import Grok so you can call their API
+//Import Groq so you can call their API
 const Groq = require('groq-sdk');
 
 // Initialize Groq
@@ -15,11 +15,11 @@ const groq = new Groq({
 async function analyzeCurriculum(pdfText, competencies) {
     //Try block prevents entire server from crashing if API fails
   try {
-    console.log('🤖 Starting Groq AI analysis...');  //Debug line. 
+    console.log('Starting Groq AI analysis...');  //Debug line. 
     
     const prompt = buildPrompt(pdfText, competencies); //Calling function defined below
     
-    console.log('   Sending request to Groq API...'); //Debug Line.
+    console.log('Sending request to Groq API...'); //Debug Line.
     
     const completion = await groq.chat.completions.create({  //Sends the AI request. 
       messages: [
@@ -43,14 +43,14 @@ async function analyzeCurriculum(pdfText, competencies) {
     const responseText = completion.choices[0].message.content; //parsing response here. 
     const analysis = JSON.parse(responseText);
     
-    console.log(`✅ Analysis complete`);
-    console.log(`   Mappings found: ${analysis.mappings ? analysis.mappings.length : 0}`); //validity checking return 0 if mapping not found
-    console.log(`   Missing criteria: ${analysis.missing ? analysis.missing.length : 0}`); //validity checking return 0 if mapping not found
+    console.log(`Analysis complete`);
+    console.log(`Mappings found: ${analysis.mappings ? analysis.mappings.length : 0}`); //validity checking return 0 if mapping not found
+    console.log(`Missing criteria: ${analysis.missing ? analysis.missing.length : 0}`); //validity checking return 0 if mapping not found
     
     return analysis; //returns the curriculum analysis 
  
   } catch (error) { //catch API, limit, and usability errors. 
-    console.error('❌ Groq analysis error:', error); 
+    console.error('Groq analysis error:', error); 
     
     if (error.message.includes('rate limit')) {
       throw new Error('Groq API rate limit exceeded. Please wait a moment and try again.');

@@ -19,14 +19,14 @@ async function fillAndUploadLevel1Excel(analysis, competencies, applicationId, t
   if (!sheet) throw new Error('Level 1 competencies sheet not found');
 
   // TO REMOVE: Log for debugging
-  console.log(`   Filling Excel for application ${applicationId}`);
-  console.log(`   Total competencies in list: ${competencies.length}`);
+  console.log(`Filling Excel for application ${applicationId}`);
+  console.log(`Total competencies in list: ${competencies.length}`);
 
   // Fill mappings (where AI found coverage)
   (analysis.mappings || []).forEach(m => {
     const index = m.competencyIndex - 1; // competencyIndex 1 → array index 0
     if (index < 0 || index >= competencies.length) {
-      console.warn(`   Invalid competencyIndex ${m.competencyIndex} (out of range)`);
+      console.warn(`Invalid competencyIndex ${m.competencyIndex} (out of range)`);
       return;
     }
 
@@ -48,7 +48,7 @@ async function fillAndUploadLevel1Excel(analysis, competencies, applicationId, t
     const compIndex = idx + 1; // 1-based
     if (!mappedIndices.has(compIndex)) {
       const rowNum = comp.rowIndex;
-      console.log(`   Marking missing: #${compIndex} → Row ${rowNum} | ${comp.text.slice(0, 40)}...`);
+      console.log(`Marking missing: #${compIndex} → Row ${rowNum} | ${comp.text.slice(0, 40)}...`);
 
       const row = sheet.getRow(rowNum);
       row.getCell(3).value = 'Not covered in provided course material';

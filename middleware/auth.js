@@ -1,5 +1,5 @@
 // Authentication middleware
-// for verifying user is logged in, or verifying user has employee role
+// for verifying user is logged in, or verifying user has reviewer role
 
 const { admin } = require('../utils/firebase');
 
@@ -26,30 +26,11 @@ async function requireAuth(req, res, next) {
   }
 }
 
-function requireEmployee(req, res, next) {
-  if (!req.user || req.user.role !== 'employee') {
-    return res.status(403).json({ success: false, error: 'Employee access required' });
+function requireReviewerRole(req, res, next) {
+  if (!req.user || req.user.role !== 'reviewer') {
+    return res.status(403).json({ success: false, error: 'Reviewer access required' });
   }
   next();
 }
 
-// NOT USED AT THE MOMENT -clinton
-// async function optionalAuth(req, res, next) {
-//   try {
-//     const authHeader = req.headers.authorization;
-//     if (authHeader && authHeader.startsWith('Bearer ')) {
-//       const idToken = authHeader.split('Bearer ')[1];
-//       const decodedToken = await admin.auth().verifyIdToken(idToken);
-//       req.user = {
-//         uid: decodedToken.uid,
-//         email: decodedToken.email,
-//         role: decodedToken.role || 'applicant'
-//       };
-//     }
-//   } catch (error) {
-//     // Silently fail
-//   }
-//   next();
-// }
-
-module.exports = { requireAuth, requireEmployee, optionalAuth };
+module.exports = { requireAuth, requireReviewerRole: requireReviewerRole, optionalAuth };

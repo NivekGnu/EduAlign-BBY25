@@ -8,13 +8,13 @@ const pdfParse = require('pdf-parse');
  */
 async function extractTextFromPDF(pdfBuffer) {
   try { //start error handling 
-    console.log('📄 Parsing PDF...'); //debug line
+    console.log('Parsing PDF...'); //debug line
     
     const data = await pdfParse(pdfBuffer); //data will store the information parsed. text, page num, pdf info, metadeta.
     
-    console.log(`✅ PDF parsed successfully`); //debug line 
-    console.log(`   Pages: ${data.numpages}`); //debug line - logs number of pages 
-    console.log(`   Text length: ${data.text.length} characters`); //debug line - logs how many characters of text
+    console.log(`PDF parsed successfully`); //debug line 
+    console.log(`Pages: ${data.numpages}`); //debug line - logs number of pages 
+    console.log(`Text length: ${data.text.length} characters`); //debug line - logs how many characters of text
     
     // checking for text on pdf. whether pdf has no text, or too little to process. (under 100 character)
     if (!data.text || data.text.trim().length < 100) {
@@ -28,7 +28,7 @@ async function extractTextFromPDF(pdfBuffer) {
       metadata: data.metadata
     }; 
   } catch (error) { //if parsing fails 
-    console.error('❌ PDF parsing error:', error);
+    console.error('PDF parsing error:', error);
     
     if (error.message.includes('Invalid PDF')) { //if invalid file type. 
       throw new Error('Invalid PDF file. Please ensure the file is a valid PDF document.');

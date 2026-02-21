@@ -1,7 +1,7 @@
 const { createApplication, updateApplication, getApplicationById, getAllApplications } = require('../utils/firestoreService');
 const { uploadToStorage, getSignedUrl } = require('../utils/firebaseStorage');
 const { extractTextFromPDF, isValidPDF, getFileSizeMB } = require('../utils/pdfParser');
-const { analyzeCurriculum, getLevel1Competencies } = require('../utils/grokAnalyzer');
+const { analyzeCurriculum, getLevel1Competencies } = require('../utils/groqAnalyzer');
 const { fillAndUploadLevel1Excel } = require('../utils/excelFiller');
 const fs = require('fs');
 
@@ -32,11 +32,11 @@ exports.submitApplication = async (req, res) => {
     
     // TODO: REMOVE CONSOLE.LOG - This is just for debugging to verify file upload and data received
     console.log('');
-    console.log('📝 ===== NEW APPLICATION SUBMISSION =====');
-    console.log(`   Provider: ${providerName}`);
-    console.log(`   Organization: ${organizationName}`);
-    console.log(`   Email: ${email}`);
-    console.log(`   File: ${pdfFile.originalname}`);
+    console.log('===== NEW APPLICATION SUBMISSION =====');
+    console.log(`Provider: ${providerName}`);
+    console.log(`Organization: ${organizationName}`);
+    console.log(`Email: ${email}`);
+    console.log(`File: ${pdfFile.originalname}`);
     console.log('');
     
     // Step 1: Read PDF file
@@ -46,7 +46,7 @@ exports.submitApplication = async (req, res) => {
       throw new Error('Invalid PDF file');
     }
     
-    console.log(`   File size: ${getFileSizeMB(pdfBuffer)} MB`);
+    console.log(`File size: ${getFileSizeMB(pdfBuffer)} MB`);
     
     let userId = null;
     if (req.user) {
@@ -74,7 +74,7 @@ exports.submitApplication = async (req, res) => {
     // Step 4: Extract text from PDF
     const pdfData = await extractTextFromPDF(pdfBuffer);
     
-    // Step 5: Analyze with Grok
+    // Step 5: Analyze with Groq
     const competencies = getLevel1Competencies();
     const analysis = await analyzeCurriculum(pdfData.text, competencies);
 
@@ -185,9 +185,9 @@ exports.reviseApplication = async (req, res) => {
     tempFilePath = pdfFile.path;
     
     console.log('');
-    console.log('🔄 ===== APPLICATION REVISION =====');
-    console.log(`   Application ID: ${application.applicationId}`);
-    console.log(`   New file: ${pdfFile.originalname}`);
+    console.log('===== APPLICATION REVISION =====');
+    console.log(`Application ID: ${application.applicationId}`);
+    console.log(`New file: ${pdfFile.originalname}`);
     console.log('');
     
     const pdfBuffer = fs.readFileSync(tempFilePath);
@@ -246,7 +246,7 @@ exports.reviseApplication = async (req, res) => {
     await updateApplication(application.id, updateData);
     
     console.log('');
-    console.log('✅ Revision submitted successfully');
+    console.log('Revision submitted successfully');
     console.log('===================================');
     console.log('');
     

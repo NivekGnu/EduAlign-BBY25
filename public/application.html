@@ -131,9 +131,9 @@
         const tokenResult = await user.getIdTokenResult(true);
         const role = tokenResult.claims.role || 'applicant';
 
-        // assumed employee would never submit.. clinton ***
-        // with current implementation, employee would have to make a different account
-        if (role === 'employee') {
+        // assumed reviewer would never submit.. clinton ***
+        // with current implementation, reviewer would have to make a different account
+        if (role === 'reviewer') {
           window.location.replace('/');
           return;
         }

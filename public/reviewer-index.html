@@ -121,12 +121,12 @@
       return;
     }
     
-    // Check if user is employee
+    // Check if user has role reviewer
     const tokenResult = await user.getIdTokenResult();
-    if (tokenResult.claims.role !== 'employee') {
-      alert('Employee access required');
+    if (tokenResult.claims.role !== 'reviewer') {
+      alert('Reviewer access required');
       await firebase.auth().signOut();
-      window.location.href = '/login.html';
+      window.location.href = '/';
       return;
     }
     
@@ -135,7 +135,7 @@
     
     $('#logoutButton').on('click', async function() {
       await firebase.auth().signOut();
-      window.location.href = '/landing.html';
+      window.location.href = '/';
     });
   });
   

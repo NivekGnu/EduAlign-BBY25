@@ -87,7 +87,7 @@ exports.updateStatus = async (req, res) => {
 
     const updatedApp = await updateApplication(id, updateData);
     
-    console.log(`✅ Status updated: ${application.applicationId} → ${status}`);
+    console.log(`Status updated: ${application.applicationId} → ${status}`);
     
     res.json({
       success: true,

@@ -61,7 +61,7 @@
         const tokenResult = await user.getIdTokenResult();
         const role = tokenResult.claims.role || 'applicant';
         
-        if (role === 'employee') {
+        if (role === 'reviewer') {
           window.location.href = '/reviewer-index.html';
         } else {
           window.location.href = '/applicant-index.html';

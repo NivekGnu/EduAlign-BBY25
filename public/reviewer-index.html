@@ -262,16 +262,18 @@
         html += '<p class="text-success">All covered!</p>';
       }
       
-      html += '<hr><h5>PDFs</h5><ul>';
-      if (result.pdfFiles) {
+      html += '<hr><h5>Uploaded Documents</h5>';
+      if (result.pdfFiles && result.pdfFiles.length > 0) {
+        html += '<ul>';
         result.pdfFiles.forEach(pdf => {
-          html += `<li><a href="${pdf.signedUrl}" target="_blank">Version ${pdf.version}: ${pdf.filename}</a></li>`;
+          html += `<li><a href="${pdf.signedUrl}" target="_blank">${pdf.filename}</a></li>`;
         });
+        html += '</ul>';
       }
-      html += '</ul>';
       
       if (result.filledExcel) {
-        html += `<hr><a href="${result.filledExcel.signedUrl}" class="btn btn-success">Download Excel</a>`;
+        html += `<hr><h5>Curriculum Mapping</h5>`;
+        html += `<ul><li><a href="${result.filledExcel.signedUrl}" target="_blank">${result.filledExcel.filename}</a></li></ul>`;
       }
       
       $('#modalContent').html(html);

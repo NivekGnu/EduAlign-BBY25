@@ -23,6 +23,7 @@ const upload = multer({
 router.post('/submit', requireAuth, upload.single('pdf'), applicationController.submitApplication);
 router.post('/revise/:id', upload.single('pdf'), applicationController.reviseApplication);
 router.get('/my-applications', requireAuth, applicationController.getMyApplications);
+router.get('/my-applications/:id', requireAuth, applicationController.getMyApplicationDetails);
 router.get('/:id', applicationController.getApplication);
 router.get('/', applicationController.getAllApplications);
 

@@ -342,3 +342,73 @@ exports.getMyApplications = async (req, res) => {
     });
   }
 };
+
+/**
+ * Get application details for current user (applicant only)
+ */
+exports.getMyApplicationDetails = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const userId = req.user.uid;
+    
+    const application = await getApplicationById(id);
+    if (!application) {
+      return res.status(404).json({
+        success: false,
+        error: 'Application not found'
+      });
+    }
+
+    // Verify this application belongs to the user
+    if (application.userId !== userId) {
+      return res.status(403).json({
+        success: false,
+        error: 'Access denied'
+      });
+    }
+
+    // Generate signed URLs for all PDF versions
+    const pdfFiles = await Promise.all(
+      application.pdfFiles.map(async (file, index) => ({
+        version: index + 1,
+        filename: file.filename,
+        uploadedAt: file.uploadedAt,
+        signedUrl: await getSignedUrl(file.storagePath, 1)
+      }))
+    );
+
+    // Signed URL for filled Excel (if generated)
+    let filledExcel = null;
+    if (application.filledExcel?.storagePath) {
+      filledExcel = {
+        filename: application.filledExcel.filename,
+        generatedAt: application.filledExcel.generatedAt,
+        signedUrl: await getSignedUrl(application.filledExcel.storagePath, 1)
+      };
+    }
+
+    res.json({
+      success: true,
+      application: {
+        _id: application._id,
+        applicationId: application.applicationId,
+        providerName: application.providerName,
+        organizationName: application.organizationName,
+        email: application.email,
+        status: application.status,
+        submittedDate: application.submittedDate,
+        lastRevised: application.lastRevised,
+        reviewedDate: application.reviewedDate,
+        reviewerNotes: application.reviewerNotes,
+        missingCriteria: application.missingCriteria,
+      },
+      pdfFiles,
+      filledExcel
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+};

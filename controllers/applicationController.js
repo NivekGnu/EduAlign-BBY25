@@ -159,121 +159,121 @@ exports.submitApplication = async (req, res) => {
 
 // may use later -clinton
 // Revise an existing application with a new PDF version
-exports.reviseApplication = async (req, res) => {
-  let tempFilePath = null;
+// exports.reviseApplication = async (req, res) => {
+//   let tempFilePath = null;
   
-  try {
-    const { id } = req.params;
-    const pdfFile = req.file;
+//   try {
+//     const { id } = req.params;
+//     const pdfFile = req.file;
     
-    if (!pdfFile) {
-      return res.status(400).json({
-        success: false,
-        error: 'No PDF file uploaded'
-      });
-    }
+//     if (!pdfFile) {
+//       return res.status(400).json({
+//         success: false,
+//         error: 'No PDF file uploaded'
+//       });
+//     }
     
-    // Find existing application
-    const application = await getApplicationById(id);
+//     // Find existing application
+//     const application = await getApplicationById(id);
     
-    if (!application) {
-      return res.status(404).json({
-        success: false,
-        error: 'Application not found'
-      });
-    }
+//     if (!application) {
+//       return res.status(404).json({
+//         success: false,
+//         error: 'Application not found'
+//       });
+//     }
     
-    tempFilePath = pdfFile.path;
+//     tempFilePath = pdfFile.path;
     
-    console.log('');
-    console.log('===== APPLICATION REVISION =====');
-    console.log(`Application ID: ${application.applicationId}`);
-    console.log(`New file: ${pdfFile.originalname}`);
-    console.log('');
+//     console.log('');
+//     console.log('===== APPLICATION REVISION =====');
+//     console.log(`Application ID: ${application.applicationId}`);
+//     console.log(`New file: ${pdfFile.originalname}`);
+//     console.log('');
     
-    const pdfBuffer = fs.readFileSync(tempFilePath);
+//     const pdfBuffer = fs.readFileSync(tempFilePath);
     
-    if (!isValidPDF(pdfBuffer)) {
-      throw new Error('Invalid PDF file');
-    }
+//     if (!isValidPDF(pdfBuffer)) {
+//       throw new Error('Invalid PDF file');
+//     }
     
-    // Upload to Firebase Storage
-    const versionNumber = application.pdfFiles.length + 1;
-    const storageResult = await uploadToStorage(pdfBuffer, pdfFile.originalname, application.id);
+//     // Upload to Firebase Storage
+//     const versionNumber = application.pdfFiles.length + 1;
+//     const storageResult = await uploadToStorage(pdfBuffer, pdfFile.originalname, application.id);
     
-    // Extract text and analyze
-    const pdfData = await extractTextFromPDF(pdfBuffer);
-    const competencies = getLevel1Competencies();
-    const analysis = await analyzeCurriculum(pdfData.text, competencies);
+//     // Extract text and analyze
+//     const pdfData = await extractTextFromPDF(pdfBuffer);
+//     const competencies = getLevel1Competencies();
+//     const analysis = await analyzeCurriculum(pdfData.text, competencies);
 
-    // Generate and upload filled Level 1 Excel
-    const { fillAndUploadLevel1Excel } = require('../utils/excelFiller');
-    let filledExcelResult = null;
-    try {
-      filledExcelResult = await fillAndUploadLevel1Excel(
-        analysis,
-        competencies,
-        application._id.toString()
-      );
-    } catch (excelErr) {
-      console.error('Warning: Failed to generate filled Excel on revision:', excelErr);
-    }
+//     // Generate and upload filled Level 1 Excel
+//     const { fillAndUploadLevel1Excel } = require('../utils/excelFiller');
+//     let filledExcelResult = null;
+//     try {
+//       filledExcelResult = await fillAndUploadLevel1Excel(
+//         analysis,
+//         competencies,
+//         application._id.toString()
+//       );
+//     } catch (excelErr) {
+//       console.error('Warning: Failed to generate filled Excel on revision:', excelErr);
+//     }
 
-    // Update application
-    const updatedPdfFiles = [...application.pdfFiles, {
-      storagePath: storageResult.storagePath,
-      publicUrl: storageResult.publicUrl,
-      filename: pdfFile.originalname,
-      uploadedAt: new Date(),
-      version: versionNumber
-    }];
+//     // Update application
+//     const updatedPdfFiles = [...application.pdfFiles, {
+//       storagePath: storageResult.storagePath,
+//       publicUrl: storageResult.publicUrl,
+//       filename: pdfFile.originalname,
+//       uploadedAt: new Date(),
+//       version: versionNumber
+//     }];
 
-    const updateData = {
-      pdfFiles: updatedPdfFiles,
-      mappings: analysis.mappings || [],
-      missingCriteria: analysis.missing || [],
-      lastRevised: new Date()
-    };
+//     const updateData = {
+//       pdfFiles: updatedPdfFiles,
+//       mappings: analysis.mappings || [],
+//       missingCriteria: analysis.missing || [],
+//       lastRevised: new Date()
+//     };
 
-    if (filledExcelResult) {
-      updateData.filledExcel = {
-        storagePath: filledExcelResult.storagePath,
-        publicUrl: filledExcelResult.publicUrl,
-        filename: filledExcelResult.filename,
-        generatedAt: new Date()
-      };
-    }
+//     if (filledExcelResult) {
+//       updateData.filledExcel = {
+//         storagePath: filledExcelResult.storagePath,
+//         publicUrl: filledExcelResult.publicUrl,
+//         filename: filledExcelResult.filename,
+//         generatedAt: new Date()
+//       };
+//     }
 
-    await updateApplication(application.id, updateData);
+//     await updateApplication(application.id, updateData);
     
-    console.log('');
-    console.log('Revision submitted successfully');
-    console.log('===================================');
-    console.log('');
+//     console.log('');
+//     console.log('Revision submitted successfully');
+//     console.log('===================================');
+//     console.log('');
     
-    // Clean up
-    fs.unlinkSync(tempFilePath);
+//     // Clean up
+//     fs.unlinkSync(tempFilePath);
     
-    res.json({
-      success: true,
-      applicationId: application.applicationId,
-      version: versionNumber,
-      missingCriteria: application.missingCriteria
-    });
+//     res.json({
+//       success: true,
+//       applicationId: application.applicationId,
+//       version: versionNumber,
+//       missingCriteria: application.missingCriteria
+//     });
     
-  } catch (error) {
-    console.error('Error revising application:', error);
+//   } catch (error) {
+//     console.error('Error revising application:', error);
     
-    if (tempFilePath && fs.existsSync(tempFilePath)) {
-      fs.unlinkSync(tempFilePath);
-    }
+//     if (tempFilePath && fs.existsSync(tempFilePath)) {
+//       fs.unlinkSync(tempFilePath);
+//     }
     
-    res.status(500).json({
-      success: false,
-      error: error.message || 'Failed to revise application'
-    });
-  }
-};
+//     res.status(500).json({
+//       success: false,
+//       error: error.message || 'Failed to revise application'
+//     });
+//   }
+// };
 
 // Return application details by ID
 exports.getApplication = async (req, res) => {

@@ -57,6 +57,11 @@ app.use('/api/applications', require('./routes/applications'));
 // Reviewer routes
 app.use('/api/reviewer', require('./routes/reviewer'));
 
+//Test 
+app.get('/test-500', (req, res) => {
+  throw new Error('Manual test error');
+});
+
 // ============================================
 // FRONTEND ROUTES
 // Serve HTML pages for user interfaces
@@ -85,15 +90,28 @@ app.get('/reviewer', (req, res) => {
 
 // 404 handler
 app.use((req, res) => {
-  res.status(404).json({ error: 'Route not found' });
+  // API routes -> JSON
+  if (req.path.startsWith('/api')) {
+    return res.status(404).json({ error: 'Route not found' });
+  }
+
+  // Browser routes -> WorkSafeBC styled error page
+  return res.status(404).sendFile(path.join(__dirname, 'public', 'error.html'));
 });
 
 // other errors or server error
 app.use((err, req, res, next) => {
   console.error('Error:', err);
-  res.status(err.status || 500).json({
-    error: err.message || 'Internal server error'
-  });
+
+  // API routes -> JSON
+  if (req.path.startsWith('/api')) {
+    return res.status(err.status || 500).json({
+      error: err.message || 'Internal server error'
+    });
+  }
+
+  // Browser routes -> redirect to error page (500)
+  return res.status(err.status || 500).redirect('/error.html?code=500');
 });
 
 // ============================================

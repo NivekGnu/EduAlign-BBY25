@@ -3,9 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Training Provider Application</title>
+  <title>Revise Application - WorkSafeBC</title>
   
-  <!-- WorkSafeBC styling -->
   <link rel="stylesheet" href="https://ux-static.online.worksafebc.com/css/wsbc.css">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
   
@@ -13,6 +12,7 @@
     body { background-color: #F1F0EF; padding: 20px 0; }
     .main-container { max-width: 1140px; margin: 0 auto; background: white; padding: 40px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
     .logo { max-width: 200px; margin-bottom: 30px; }
+    .alert-warning { background-color: #F9E0A0; border-left: 4px solid #F1BE48; padding: 20px; margin: 20px 0; }
     .form-section { margin-bottom: 30px; padding-bottom: 30px; border-bottom: 1px solid #E4E2E0; }
     .form-section:last-child { border-bottom: none; }
     .loading-spinner { display: none; text-align: center; padding: 40px; }
@@ -23,14 +23,11 @@
     .file-info { margin-top: 15px; padding: 10px; background: #E0EBEF; border-radius: 4px; }
     .success-message { background-color: #E7E8D6; border-left: 4px solid #888D30; padding: 20px; margin: 20px 0; }
     .missing-criteria { background-color: #F9E0A0; border-left: 4px solid #F1BE48; padding: 20px; margin: 20px 0; }
-    /* NEW: Analysis results styling */
     .analysis-results { background-color: #E0EBEF; border-left: 4px solid #6399AE; padding: 20px; margin: 20px 0; }
-    /* NEW: Hide analysis section by default */
     #analysisSection { display: none; }
     #resultsSection { display: none; }
-    /* NEW: Button group styling for side-by-side buttons */
     .btn-group { display: flex; gap: 10px; justify-content: center; }
-  </style> 
+  </style>
   
   <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
@@ -39,50 +36,37 @@
 <body>
 
   <div class="main-container">
-    <!-- WorkSafeBC logo -->
     <img src="https://ux-static.online.worksafebc.com/css/assets/img/worksafebc-logo.jpg" alt="WorkSafeBC" class="logo">
     
-    <h1>Asbestos Abatement Training Provider Application</h1>
-    <p class="mb-4">Submit your training curriculum for WorkSafeBC approval.</p>
+    <h1>Revise Application</h1>
+    <p class="mb-4">Upload a revised curriculum to address missing competencies.</p>
     
-    <!-- Application form -->
-    <form id="applicationForm">
+    <!-- Application Info Alert -->
+    <div class="alert-warning">
+      <h4><i class="fa fa-info-circle"></i> Revising Application <strong id="applicationId"></strong></h4>
+      <p>Upload your revised curriculum PDF. Previous versions will be kept for reference.</p>
+    </div>
+    
+    <!-- Revision form -->
+    <form id="revisionForm">
       <div class="form-section">
-        <h2 class="subtitle-orange">Contact Information</h2>
-        <!-- For applicant name -->
-        <div class="form-group">
-          <label for="providerName">Your Name <span class="text-danger">*</span></label>
-          <input type="text" class="form-control" id="providerName" required>
-        </div>
-        <!-- For organization name -->
-        <div class="form-group">
-          <label for="organizationName">Organization Name <span class="text-danger">*</span></label>
-          <input type="text" class="form-control" id="organizationName" required>
-        </div>
-      </div>
-      
-      <!-- Upload file section -->
-      <div class="form-section">
-        <h2 class="subtitle-orange">Course Curriculum</h2>
+        <h2 class="subtitle-orange">Upload Revised Curriculum</h2>
         <label for="pdfFile" style="cursor: pointer; display: block;">
-          <!-- Drag and drop area for file upload -->
           <div class="file-upload-area" id="dropZone">
             <i class="fa fa-upload fa-3x mb-3" style="color: #6399AE;"></i>
             <p><strong>Click to select file</strong> or drag and drop here</p>
             <p class="text-muted">PDF format, maximum 10MB</p>
           </div>
         </label>
-        <!-- Restrict to ONLY PDF -->
         <input type="file" id="pdfFile" accept=".pdf" style="display: none;">
         <div id="fileInfo" class="file-info" style="display: none;">
           <i class="fa fa-file-pdf-o"></i> <span id="fileName"></span> (<span id="fileSize"></span>)
         </div>
       </div>
       
-      <!-- NEW: Analyze button (replaces direct submit) -->
       <div class="text-center btn-group">
         <button type="button" id="analyzeButton" class="btn btn-blue btn-lg">
-          <i class="fa fa-search"></i> Analyze Curriculum
+          <i class="fa fa-search"></i> Analyze Revised Curriculum
         </button>
       </div>
     </form>
@@ -90,53 +74,62 @@
     <!-- Loading spinner -->
     <div id="loadingSection" class="loading-spinner">
       <div class="spinner"></div>
-      <!-- NEW: Dynamic loading text changes between analyze/submit -->
-      <h3 id="loadingText">Analyzing your curriculum...</h3>
+      <h3 id="loadingText">Analyzing your revised curriculum...</h3>
       <p>This may take up to a minute. Please don't close this window.</p>
     </div>
     
-    <!-- NEW: Analysis results section (shows after analyze, before submit) -->
+    <!-- Analysis results section -->
     <div id="analysisSection">
       <div class="analysis-results">
         <h3><i class="fa fa-check-circle"></i> Analysis Complete</h3>
         <p id="analysisMessage"></p>
       </div>
       
-      <!-- Missing competencies details -->
       <div id="missingCriteriaSection"></div>
       
-      <!-- Two-button choice: re-analyze or submit -->
       <div class="text-center btn-group">
         <button type="button" id="reanalyzeButton" class="btn btn-outline-blue btn-lg">
           <i class="fa fa-refresh"></i> Upload Different PDF
         </button>
         <button type="button" id="submitButton" class="btn btn-orange btn-lg">
-          <i class="fa fa-paper-plane"></i> Submit Application
+          <i class="fa fa-paper-plane"></i> Submit Revision
         </button>
       </div>
     </div>
     
-    <!-- Final submission results section -->
+    <!-- Final submission results -->
     <div id="resultsSection">
       <div class="success-message">
-        <h3><i class="fa fa-check-circle"></i> Application Submitted Successfully</h3>
-        <p>Your application ID: <strong id="applicationId"></strong></p>
-        <!-- NEW: Link to view all applications -->
+        <h3><i class="fa fa-check-circle"></i> Revision Submitted Successfully</h3>
+        <p>Your application has been updated with the new curriculum.</p>
         <p><a href="/applicant-index.html" class="btn btn-blue mt-3">View My Applications</a></p>
       </div>
     </div>
   </div>
   
-  <!-- jQuery for simplified DOM manipulation -->
   <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
   <script>
     let selectedFile = null;
     let authToken = null;
-    // NEW: Store analysis results to use during final submission
     let analysisResults = null;
+    let applicationId = null; // Database ID
+    let applicationDisplayId = null; // Display ID (e.g., APP20260305ABCD)
     
-    // Initialize when DOM is ready
     $(document).ready(async function() {
+      // Get application ID from URL
+      const urlParams = new URLSearchParams(window.location.search);
+      applicationId = urlParams.get('id');
+      applicationDisplayId = urlParams.get('appId');
+      
+      if (!applicationId || !applicationDisplayId) {
+        alert('Invalid application ID');
+        window.location.href = '/applicant-index.html';
+        return;
+      }
+      
+      $('#applicationId').text(applicationDisplayId);
+      
+      // Check Firebase authentication
       const user = await new Promise(resolve => {
         const unsubscribe = firebase.auth().onAuthStateChanged(u => {
           unsubscribe();
@@ -153,17 +146,13 @@
         const tokenResult = await user.getIdTokenResult(true);
         const role = tokenResult.claims.role || 'applicant';
 
-        // assumed reviewer would never submit.. clinton ***
-        // with current implementation, reviewer would have to make a different account
         if (role === 'reviewer') {
           window.location.replace('/');
           return;
         }
 
-        // Applicant → proceed
         authToken = await user.getIdToken();
         setupFileUpload();
-        // NEW: Setup button handlers for analyze/reanalyze/submit
         setupButtons();
 
       } catch (err) {
@@ -172,31 +161,24 @@
       }
     });
     
-    // set up file upload functionality (click to upload or drag+drop)
     function setupFileUpload() {
       const dropZone = $('#dropZone');
       const fileInput = $('#pdfFile');
       
-      // label for="pdfFile",
-      // when clicking on that label, trigger click on "pdfFile"
-      // opens system file dialog to select file
       fileInput.on('change', function(e) {
         handleFileSelect(e.target.files[0]);
       });
       
-      // Highlight drop zone if drag over zone
       dropZone.on('dragover', function(e) {
         e.preventDefault();
         $(this).css('border-color', '#ED8B00');
       });
       
-      // Remove highlight if drag leaves zone
       dropZone.on('dragleave', function(e) {
         e.preventDefault();
         $(this).css('border-color', '#C9C5C1');
       });
       
-      // Handle event for dropped file
       dropZone.on('drop', function(e) {
         e.preventDefault();
         $(this).css('border-color', '#C9C5C1');
@@ -207,61 +189,46 @@
       });
     }
     
-    // Validate and store file in memory (via selectedFile)
     function handleFileSelect(file) {
       if (!file) return;
 
-      // Restrict to ONLY PDF
       if (file.type !== 'application/pdf') {
         alert('Please select a PDF file');
         return;
       }
-      // Restrict to max 10 MB
       if (file.size > 10 * 1024 * 1024) {
         alert('File size must be less than 10MB');
         return;
       }
       
-      // Store file in memory and populate info
       selectedFile = file;
       $('#fileName').text(file.name);
       $('#fileSize').text((file.size / 1024 / 1024).toFixed(2) + ' MB');
       $('#fileInfo').show();
     }
     
-    // NEW: Setup button click handlers for new three-button flow
     function setupButtons() {
       $('#analyzeButton').on('click', analyzeCurriculum);
       $('#reanalyzeButton').on('click', resetForm);
-      $('#submitButton').on('click', submitApplication);
+      $('#submitButton').on('click', submitRevision);
     }
     
-    // NEW: Analyze curriculum without saving (preview only)
-    // Calls /api/applications/analyze endpoint
     async function analyzeCurriculum() {
       if (!selectedFile) {
         alert('Please select a PDF file');
         return;
       }
       
-      if (!$('#providerName').val() || !$('#organizationName').val()) {
-        alert('Please fill in all required fields');
-        return;
-      }
-      
-      // Show loading spinner and hide form
-      $('#applicationForm').hide();
+      $('#revisionForm').hide();
       $('#loadingSection').show();
-      $('#loadingText').text('Analyzing your curriculum...');
+      $('#loadingText').text('Analyzing your revised curriculum...');
       
       try {
-        // Prepare form data for multipart upload
         const formData = new FormData();
-        formData.append('providerName', $('#providerName').val());
-        formData.append('organizationName', $('#organizationName').val());
+        formData.append('providerName', 'Revision'); // Not used for analysis
+        formData.append('organizationName', 'Revision'); // Not used for analysis
         formData.append('pdf', selectedFile);
         
-        // Call analyze endpoint (does NOT save to database)
         const response = await fetch('/api/applications/analyze', {
           method: 'POST',
           headers: { 'Authorization': `Bearer ${authToken}` },
@@ -271,7 +238,6 @@
         const result = await response.json();
         
         if (result.success) {
-          // Store analysis results for later submission
           analysisResults = result.analysis;
           displayAnalysisResults(result.analysis);
         } else {
@@ -281,13 +247,11 @@
       } catch (error) {
         console.error('Error:', error);
         $('#loadingSection').hide();
-        $('#applicationForm').show();
+        $('#revisionForm').show();
         alert('Error analyzing curriculum: ' + error.message);
       }
     }
     
-    // NEW: Display analysis results with missing competencies
-    // Shows user what's covered/missing before they commit to submission
     function displayAnalysisResults(analysis) {
       $('#loadingSection').hide();
       $('#analysisSection').show();
@@ -295,8 +259,7 @@
       const missingSection = $('#missingCriteriaSection');
       
       if (analysis.missingCriteria && analysis.missingCriteria.length > 0) {
-        // Show message about missing competencies
-        $('#analysisMessage').html('The following competencies are missing from your curriculum. Please revise your course materials and reupload, or proceed to submit as-is (not recommended).');
+        $('#analysisMessage').html('The following competencies are still missing from your revised curriculum. You can upload a different PDF and re-analyze, or proceed to submit this revision.');
         
         let html = '<div class="missing-criteria">';
         html += '<h3><i class="fa fa-exclamation-triangle"></i> Missing Competencies</h3>';
@@ -308,26 +271,21 @@
         html += '</div>';
         missingSection.html(html);
       } else {
-        // Show success message
-        $('#analysisMessage').html('All competencies are covered! You can proceed to submit your application.');
+        $('#analysisMessage').html('All competencies are now covered! You can proceed to submit your revision.');
         missingSection.html('');
       }
     }
     
-    // NEW: Reset form to allow user to upload different PDF and re-analyze
-    // Does not save anything - allows unlimited iterations
     function resetForm() {
       $('#analysisSection').hide();
-      $('#applicationForm').show();
+      $('#revisionForm').show();
       $('#fileInfo').hide();
       $('#pdfFile').val('');
       selectedFile = null;
       analysisResults = null;
     }
     
-    // NEW: Submit application after analysis (final commit)
-    // This is when everything gets saved to database and Firebase
-    async function submitApplication() {
+    async function submitRevision() {
       if (!selectedFile || !analysisResults) {
         alert('Please analyze your curriculum first');
         return;
@@ -335,17 +293,13 @@
       
       $('#analysisSection').hide();
       $('#loadingSection').show();
-      $('#loadingText').text('Submitting your application...');
+      $('#loadingText').text('Submitting your revision...');
       
       try {
-        // Prepare form data for multipart upload
         const formData = new FormData();
-        formData.append('providerName', $('#providerName').val());
-        formData.append('organizationName', $('#organizationName').val());
         formData.append('pdf', selectedFile);
         
-        // Call submit endpoint (NOW saves to database and Firebase)
-        const response = await fetch('/api/applications/submit', {
+        const response = await fetch(`/api/applications/revise/${applicationId}`, {
           method: 'POST',
           headers: { 'Authorization': `Bearer ${authToken}` },
           body: formData
@@ -363,15 +317,13 @@
         console.error('Error:', error);
         $('#loadingSection').hide();
         $('#analysisSection').show();
-        alert('Error submitting application: ' + error.message);
+        alert('Error submitting revision: ' + error.message);
       }
     }
     
-    // Display final submission success with application ID
     function displaySubmissionResults(result) {
       $('#loadingSection').hide();
       $('#resultsSection').show();
-      $('#applicationId').text(result.applicationId);
     }
   </script>
 </body>

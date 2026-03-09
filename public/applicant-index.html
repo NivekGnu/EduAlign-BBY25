@@ -19,6 +19,14 @@
       .status-unreviewed { background-color: #ADA8A2; color: white; }
       .status-incomplete { background-color: #F1BE48; color: white; }
       .status-approved { background-color: #888D30; color: white; }
+      /* Accordion styling for version history */
+      .accordion .card { margin-bottom: 10px; border: 1px solid #E4E2E0; }
+      .accordion .card-header { background-color: #F8F8F8; padding: 0; }
+      .accordion .card-header .btn-link { width: 100%; text-align: left; padding: 15px; color: #003366; text-decoration: none; display: block; }
+      .accordion .card-header .btn-link:hover { background-color: #E0EBEF; text-decoration: none; }
+      .accordion .card-body { padding: 20px; background-color: white; }
+      .accordion .card-body h6 { color: #ED8B00; margin-top: 15px; margin-bottom: 10px; }
+      .accordion .card-body h6:first-child { margin-top: 0; }
     </style>
   </head>
   <body>
@@ -188,6 +196,11 @@
                 <button class="btn btn-sm btn-blue view-btn" data-id="${app._id}">
                   <i class="fa fa-eye"></i> View
                 </button>
+                ${app.status === 'Incomplete' ? `
+                  <button class="btn btn-sm btn-orange revise-btn" data-id="${app._id}" data-app-id="${app.applicationId}">
+                    <i class="fa fa-upload"></i> Revise
+                  </button>
+                ` : ''}
               </td>
             </tr>
           `);
@@ -196,11 +209,16 @@
         $('.view-btn').on('click', async function() {
           await viewApplication($(this).data('id'));
         });
+
+        $('.revise-btn').on('click', function() {
+          const id = $(this).data('id');
+          const appId = $(this).data('app-id');
+          window.location.href = `/application-revise.html?id=${id}&appId=${appId}`;
+        });
       }
 
       async function viewApplication(id) {
         try {
-          // Get full application details with signed URLs
           const response = await fetch(`/api/applications/my-applications/${id}`, {
             headers: { 'Authorization': `Bearer ${authToken}` }
           });
@@ -209,35 +227,70 @@
           if (!result.success) throw new Error(result.error);
           
           const app = result.application;
+          const versions = result.versions || [];
+          
           let html = `
             <h4>${app.applicationId} - ${app.providerName}</h4>
             <p><strong>Organization:</strong> ${app.organizationName}</p>
             <p><strong>Email:</strong> ${app.email}</p>
             <p><strong>Status:</strong> ${app.status}</p>
             <p><strong>Submitted:</strong> ${formatDate(app.submittedDate)}</p>
-            <hr><h5>Missing Competencies</h5>
+            ${app.lastRevised ? `<p><strong>Last Revised:</strong> ${formatDate(app.lastRevised)}</p>` : ''}
+            <hr>
+            <h5>Version History</h5>
           `;
           
-          if (app.missingCriteria && app.missingCriteria.length > 0) {
-            html += '<ul>';
-            app.missingCriteria.forEach(c => html += `<li>${c}</li>`);
-            html += '</ul>';
+          if (versions.length === 0) {
+            html += '<p class="text-muted">No versions available</p>';
           } else {
-            html += '<p class="text-success">All competencies covered!</p>';
-          }
-          
-          html += '<hr><h5>Uploaded Documents</h5>';
-          if (result.pdfFiles && result.pdfFiles.length > 0) {
-            html += '<ul>';
-            result.pdfFiles.forEach(pdf => {
-              html += `<li><a href="${pdf.signedUrl}" target="_blank">${pdf.filename}</a></li>`;
+            html += '<div class="accordion" id="versionAccordion">';
+            
+            // Sort versions in reverse order (newest first)
+            const sortedVersions = [...versions].sort((a, b) => b.version - a.version);
+            
+            sortedVersions.forEach((v, index) => {
+              const isCurrentVersion = v.version === app.currentVersion;
+              const collapseId = `collapse-v${v.version}`;
+              const headingId = `heading-v${v.version}`;
+              const showClass = isCurrentVersion ? 'show' : '';
+              const expandedIcon = isCurrentVersion ? '▼' : '▶';
+              
+              html += `
+                <div class="card">
+                  <div class="card-header" id="${headingId}">
+                    <h6 class="mb-0">
+                      <button class="btn btn-link" type="button" data-toggle="collapse" data-target="#${collapseId}" aria-expanded="${isCurrentVersion}" aria-controls="${collapseId}">
+                        ${expandedIcon} Version ${v.version} ${isCurrentVersion ? '(Current)' : ''} - ${formatDate(v.analyzedAt)}
+                      </button>
+                    </h6>
+                  </div>
+                  <div id="${collapseId}" class="collapse ${showClass}" aria-labelledby="${headingId}" data-parent="#versionAccordion">
+                    <div class="card-body">
+                      <h6>Missing Competencies</h6>
+              `;
+              
+              if (v.missingCriteria && v.missingCriteria.length > 0) {
+                html += '<ul>';
+                v.missingCriteria.forEach(c => html += `<li>${c}</li>`);
+                html += '</ul>';
+              } else {
+                html += '<p class="text-success">All competencies covered!</p>';
+              }
+              
+              html += '<h6>Documents</h6><ul>';
+              
+              if (v.pdfFile) {
+                html += `<li><a href="${v.pdfFile.signedUrl}" target="_blank">${v.pdfFile.filename}</a></li>`;
+              }
+              
+              if (v.excelFile) {
+                html += `<li><a href="${v.excelFile.signedUrl}" target="_blank">${v.excelFile.filename}</a></li>`;
+              }
+              
+              html += '</ul></div></div></div>';
             });
-            html += '</ul>';
-          }
-          
-          if (result.filledExcel) {
-            html += `<hr><h5>Curriculum Mapping</h5>`;
-            html += `<ul><li><a href="${result.filledExcel.signedUrl}" target="_blank">${result.filledExcel.filename}</a></li></ul>`;
+            
+            html += '</div>';
           }
           
           $('#modalContent').html(html);

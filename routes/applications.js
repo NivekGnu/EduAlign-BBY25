@@ -20,8 +20,9 @@ const upload = multer({
 });
 
 // Routes
+router.post('/analyze', requireAuth, upload.single('pdf'), applicationController.analyzeCurriculum); // analyze uploaded document only (does not save)
 router.post('/submit', requireAuth, upload.single('pdf'), applicationController.submitApplication); // submits an applicant's application
-// router.post('/revise/:id', upload.single('pdf'), applicationController.reviseApplication); // may use later -clinton
+router.post('/revise/:id', requireAuth, upload.single('pdf'), applicationController.reviseApplication); // allow applicant to revise existing submitted application
 router.get('/my-applications', requireAuth, applicationController.getMyApplications); // allow applicant to view all their applications
 router.get('/my-applications/:id', requireAuth, applicationController.getMyApplicationDetails); // allow applicant to see details about their application
 

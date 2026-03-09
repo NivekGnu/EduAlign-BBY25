@@ -15,7 +15,7 @@ function generateApplicationId(docId, createdAt) {
 }
 
 /**
- * Create new application record in Firestore
+ * Create new application record in Firestore with versions structure
  * 
  * Process:
  * 1. Add document to 'applications' collection with data
@@ -31,9 +31,10 @@ function generateApplicationId(docId, createdAt) {
  * @param {String} data.email - Contact email
  * @param {String} data.status - Initial status (typically "Unreviewed")
  * @param {Date} data.submittedDate - Submission date
- * @param {Array} [data.pdfFiles=[]] - Array of PDF file metadata
- * @param {Array} [data.mappings=[]] - Competency mappings
- * @param {Array} [data.missingCriteria=[]] - Missing competencies
+ * @param {Object} data.pdfFile - PDF file metadata for version 1
+ * @param {Object} data.excelFile - Excel file metadata for version 1
+ * @param {Array} [data.mappings=[]] - Competency mappings for version 1
+ * @param {Array} [data.missingCriteria=[]] - Missing competencies for version 1
  * 
  * @returns {Promise<Object>} Created application with generated IDs
  * 
@@ -41,8 +42,25 @@ function generateApplicationId(docId, createdAt) {
  */
 async function createApplication(data) {
   try {
+    // Build version 1 object
+    const version1 = {
+      version: 1,
+      analyzedAt: new Date(),
+      pdfFile: data.pdfFile,
+      excelFile: data.excelFile || null,
+      missingCriteria: data.missingCriteria || [],
+      mappings: data.mappings || []
+    };
+
     const docRef = await db.collection('applications').add({
-      ...data,
+      userId: data.userId || null,
+      providerName: data.providerName,
+      organizationName: data.organizationName,
+      email: data.email,
+      status: data.status || 'Unreviewed',
+      submittedDate: data.submittedDate,
+      currentVersion: 1,
+      versions: [version1],
       createdAt: FieldValue.serverTimestamp(),
       updatedAt: FieldValue.serverTimestamp()
     });
@@ -58,7 +76,7 @@ async function createApplication(data) {
     
     return {
       id: doc.id,
-      _id: doc.id, // For compatibility
+      _id: doc.id,
       applicationId,
       ...docData
     };
@@ -119,6 +137,57 @@ async function updateApplication(id, data) {
     return await getApplicationById(id);
   } catch (error) {
     console.error('Error updating application:', error);
+    throw error;
+  }
+}
+
+/**
+ * Add a new revision (version) to an existing application
+ * 
+ * @param {String} id - Firestore document ID
+ * @param {Object} revisionData - New version data
+ * @param {Object} revisionData.pdfFile - PDF file metadata
+ * @param {Object} revisionData.excelFile - Excel file metadata
+ * @param {Array} revisionData.missingCriteria - Missing competencies
+ * @param {Array} revisionData.mappings - Competency mappings
+ * 
+ * @returns {Promise<Object>} Updated application object
+ * 
+ * @throws {Error} If document doesn't exist or update fails
+ */
+async function addRevision(id, revisionData) {
+  try {
+    const application = await getApplicationById(id);
+    
+    if (!application) {
+      throw new Error('Application not found');
+    }
+    
+    const newVersionNumber = application.currentVersion + 1;
+    
+    // Build new version object
+    const newVersion = {
+      version: newVersionNumber,
+      analyzedAt: new Date(),
+      pdfFile: revisionData.pdfFile,
+      excelFile: revisionData.excelFile || null,
+      missingCriteria: revisionData.missingCriteria || [],
+      mappings: revisionData.mappings || []
+    };
+    
+    // Add new version to versions array
+    const updatedVersions = [...application.versions, newVersion];
+    
+    await db.collection('applications').doc(id).update({
+      versions: updatedVersions,
+      currentVersion: newVersionNumber,
+      lastRevised: new Date(),
+      updatedAt: FieldValue.serverTimestamp()
+    });
+    
+    return await getApplicationById(id);
+  } catch (error) {
+    console.error('Error adding revision:', error);
     throw error;
   }
 }
@@ -244,6 +313,7 @@ module.exports = {
   createApplication,
   getApplicationById,
   updateApplication,
+  addRevision,
   getAllApplications,
   deleteApplication,
   getStats,

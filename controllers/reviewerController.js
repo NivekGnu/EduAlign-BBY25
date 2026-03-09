@@ -91,25 +91,37 @@ exports.getApplicationDetails = async (req, res) => {
       });
     }
 
-    // Generate signed URLs for all PDF versions
-    const pdfFiles = await Promise.all(
-      application.pdfFiles.map(async (file, index) => ({
-        version: index + 1,
-        filename: file.filename,
-        uploadedAt: file.uploadedAt,
-        signedUrl: await getSignedUrl(file.storagePath, 1) // 1 day
-      }))
-    );
+    // Generate signed URLs for all versions
+    const versions = await Promise.all(
+      (application.versions || []).map(async (version) => {
+        const versionData = {
+          version: version.version,
+          analyzedAt: version.analyzedAt,
+          missingCriteria: version.missingCriteria || [],
+          mappings: version.mappings || []
+        };
 
-    // Signed URL for filled Excel (if generated)
-    let filledExcel = null;
-    if (application.filledExcel?.storagePath) {
-      filledExcel = {
-        filename: application.filledExcel.filename,
-        generatedAt: application.filledExcel.generatedAt,
-        signedUrl: await getSignedUrl(application.filledExcel.storagePath, 1)
-      };
-    }
+        // Add signed URL for PDF
+        if (version.pdfFile?.storagePath) {
+          versionData.pdfFile = {
+            filename: version.pdfFile.filename,
+            uploadedAt: version.pdfFile.uploadedAt,
+            signedUrl: await getSignedUrl(version.pdfFile.storagePath, 1)
+          };
+        }
+
+        // Add signed URL for Excel
+        if (version.excelFile?.storagePath) {
+          versionData.excelFile = {
+            filename: version.excelFile.filename,
+            generatedAt: version.excelFile.generatedAt,
+            signedUrl: await getSignedUrl(version.excelFile.storagePath, 1)
+          };
+        }
+
+        return versionData;
+      })
+    );
 
     res.json({
       success: true,
@@ -124,11 +136,9 @@ exports.getApplicationDetails = async (req, res) => {
         lastRevised: application.lastRevised,
         reviewedDate: application.reviewedDate,
         reviewerNotes: application.reviewerNotes,
-        missingCriteria: application.missingCriteria,
-        // mappings excluded for size, add if needed
+        currentVersion: application.currentVersion || 1
       },
-      pdfFiles,
-      filledExcel
+      versions: versions
     });
   } catch (error) {
     res.status(500).json({

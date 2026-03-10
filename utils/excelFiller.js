@@ -23,14 +23,15 @@ async function fillAndUploadLevel1Excel(analysis, competencies, applicationId, t
   console.log(`Total competencies in list: ${competencies.length}`);
 
   // Fill mappings (where AI found coverage)
+  // note mappings and missingCriteria variables use 1-based indexing
   (analysis.mappings || []).forEach(m => {
-    const index = m.competencyIndex - 1; // competencyIndex 1 → array index 0
+    const index = m.competencyIndex - 1; // convert to 0-based indexing: eg. competencyIndex 1 → array index 0
     if (index < 0 || index >= competencies.length) {
       console.warn(`Invalid competencyIndex ${m.competencyIndex} (out of range)`);
       return;
     }
 
-    const rowNum = competencies[index].rowIndex;
+    const rowNum = competencies[index].rowIndex; // competencies array is 0 based
     const competencyText = competencies[index].text.slice(0, 40) + '...';
 
     console.log(`   Mapping #${m.competencyIndex} → Row ${rowNum} | ${competencyText}`);

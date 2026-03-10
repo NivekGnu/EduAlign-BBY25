@@ -45,7 +45,7 @@ async function analyzeCurriculum(pdfText, competencies) {
     
     console.log(`Analysis complete`);
     console.log(`Mappings found: ${analysis.mappings ? analysis.mappings.length : 0}`); //validity checking return 0 if mapping not found
-    console.log(`Missing criteria: ${analysis.missing ? analysis.missing.length : 0}`); //validity checking return 0 if mapping not found
+    console.log(`Missing criteria: ${analysis.missingCriteria ? analysis.missingCriteria.length : 0}`); //validity checking return 0 if mapping not found
     
     return analysis; //returns the curriculum analysis 
  
@@ -105,7 +105,7 @@ If a competency is NOT adequately covered in the course material, mark it as MIS
       "howAssessed": "Written exam and Quiz"
     }
   ],
-  "missing": [
+  "missingCriteria": [
     "Competency #5: Describe the abatement process - not found in curriculum"
   ]
 }
@@ -114,12 +114,12 @@ If a competency is NOT adequately covered in the course material, mark it as MIS
 - Be specific about locations (page numbers, section names, module titles)
 - Only mark as MISSING if truly absent or insufficiently covered
 - Return ONLY valid JSON, no explanatory text
-- Include ALL competencies in either mappings or missing`;
+- Include ALL competencies in either mappings or missingCriteria`;
 }
 
 /**
  * Get ALL Level 1 competencies with accurate rowIndex from the template
- * Row numbers are 1-based from the Excel sheet.
+ * Note row numbers are 1-based in the Excel sheet.
  * Only includes actual competency rows (skips headers like section titles).
  */
 function getLevel1Competencies() {

@@ -110,7 +110,7 @@ exports.submitApplication = async (req, res) => {
         filename: filledExcelResult.filename,
         generatedAt: new Date()
       } : null,
-      missingCriteria: analysis.missing || [],
+      missingCriteria: analysis.missingCriteria || [],
       mappings: analysis.mappings || []
     };
 
@@ -224,9 +224,9 @@ exports.analyzeCurriculum = async (req, res) => {
     res.json({
       success: true,
       analysis: {
-        missingCriteria: analysis.missing || [],
+        missingCriteria: analysis.missingCriteria || [],
         mappingsCount: analysis.mappings ? analysis.mappings.length : 0,
-        coveredCount: competencies.length - (analysis.missing ? analysis.missing.length : 0)
+        coveredCount: competencies.length - (analysis.missingCriteria ? analysis.missingCriteria.length : 0)
       }
     });
     
@@ -438,7 +438,7 @@ exports.reviseApplication = async (req, res) => {
         filename: filledExcelResult.filename,
         generatedAt: new Date()
       } : null,
-      missingCriteria: analysis.missing || [],
+      missingCriteria: analysis.missingCriteria || [],
       mappings: analysis.mappings || []
     };
     

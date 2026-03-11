@@ -124,7 +124,7 @@
   <script>
     let selectedFiles = [];
     let authToken = null;
-    let analysisResults = null;
+    let analysisResults = null; // Store analysis results, gets assigned when calling analyzeCurriculum
     let applicationId = null; // Database ID
     let applicationDisplayId = null; // Display ID (e.g., APP20260305ABCD)
     
@@ -359,6 +359,7 @@
       
       try {
         const formData = new FormData();
+        formData.append('analysisResults', JSON.stringify(analysisResults)); // cache analysisResults to avoid calling analyzeCurriculum again
         selectedFiles.forEach(file => {
           formData.append('pdfs', file);
         });

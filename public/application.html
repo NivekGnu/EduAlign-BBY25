@@ -144,8 +144,7 @@
   <script>
     let selectedFiles = [];
     let authToken = null;
-    // NEW: Store analysis results to use during final submission
-    let analysisResults = null;
+    let analysisResults = null; // Store analysis results, gets assigned when calling analyzeCurriculum
     
     // Initialize when DOM is ready
     $(document).ready(async function() {
@@ -402,6 +401,7 @@
         const formData = new FormData();
         formData.append('providerName', $('#providerName').val());
         formData.append('organizationName', $('#organizationName').val());
+        formData.append('analysisResults', JSON.stringify(analysisResults)); // cache analysisResults to avoid calling analyzeCurriculum again
         selectedFiles.forEach(file => {
           formData.append('pdfs', file);
         });

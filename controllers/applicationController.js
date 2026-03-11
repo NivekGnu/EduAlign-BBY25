@@ -84,11 +84,22 @@ exports.submitApplication = async (req, res) => {
     
     // Extract text from all PDFs
     const pdfData = await extractTextFromMultiplePDFs(pdfBuffers, filenames);
-    
-    // Step 5: Analyze with Groq (using combined text)
-    const competencies = getLevel1Competencies();
-    const analysis = await analyzeCurriculum(pdfData.combinedText, competencies);
 
+    const competencies = getLevel1Competencies();
+    
+    // Step 5: Use cached analysisResults, otherwise analyze with Groq (using combined text)
+    // const analysis = await analyzeCurriculum(pdfData.combinedText, competencies);
+    let analysis;
+    if (req.body.analysisResults) {
+      // Use the analysis from the "Analyze" step
+      console.log('Using pre-analyzed results from frontend');
+      analysis = JSON.parse(req.body.analysisResults);
+    } else {
+      // Fallback: analyze now
+      console.log('No pre-analyzed results found, analyzing now...');
+      analysis = await analyzeCurriculum(pdfData.combinedText, competencies);
+    }
+    
     // Generate and upload filled Level 1 Excel
     let filledExcelResult = null;
     try {
@@ -251,6 +262,7 @@ exports.analyzeCurriculum = async (req, res) => {
       success: true,
       analysis: {
         missingCriteria: analysis.missingCriteria || [],
+        mappings: analysis.mappings || [],
         mappingsCount: analysis.mappings ? analysis.mappings.length : 0,
         coveredCount: competencies.length - (analysis.missingCriteria ? analysis.missingCriteria.length : 0),
         filesAnalyzed: pdfFiles.length // NEW: File count
@@ -450,7 +462,18 @@ exports.reviseApplication = async (req, res) => {
     // Extract text from all PDFs and analyze
     const pdfData = await extractTextFromMultiplePDFs(pdfBuffers, filenames);
     const competencies = getLevel1Competencies();
-    const analysis = await analyzeCurriculum(pdfData.combinedText, competencies);
+    // Use cached analysisResults, otherwise analyze with Groq (using combined text)
+    // const analysis = await analyzeCurriculum(pdfData.combinedText, competencies);
+    let analysis;
+    if (req.body.analysisResults) {
+      // Use the analysis from the "Analyze" step
+      console.log('Using pre-analyzed results from frontend');
+      analysis = JSON.parse(req.body.analysisResults);
+    } else {
+      // Fallback: analyze now
+      console.log('No pre-analyzed results found, analyzing now...');
+      analysis = await analyzeCurriculum(pdfData.combinedText, competencies);
+    }
     
     // Generate and upload filled Excel
     let filledExcelResult = null;

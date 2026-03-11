@@ -1,18 +1,21 @@
 const { createApplication, updateApplication, getApplicationById, getAllApplications } = require('../utils/firestoreService');
-const { uploadToStorage, getSignedUrl } = require('../utils/firebaseStorage');
-const { extractTextFromPDF, isValidPDF, getFileSizeMB } = require('../utils/pdfParser');
+const { uploadMultipleToStorage, getSignedUrl } = require('../utils/firebaseStorage');
+const { extractTextFromMultiplePDFs, isValidPDF, getFileSizeMB } = require('../utils/pdfParser');
 const { analyzeCurriculum, getLevel1Competencies } = require('../utils/groqAnalyzer');
 const { fillAndUploadLevel1Excel } = require('../utils/excelFiller');
 const fs = require('fs');
 
 // Submit a new application (create applicationId and store all files)
 exports.submitApplication = async (req, res) => {
-  let tempFilePath = null;
+  const tempFilePaths = []; // Array to track all temp files
   
   try {
     const { providerName, organizationName } = req.body;
     const email = req.user ? req.user.email : req.body.email;
-    const pdfFile = req.file;
+    const pdfFiles = req.files; 
+    // files sent over http as bytes, multer intercepts and extracts bytes of each PDF file, 
+    // bytes for each file saved temporarily in /Uploads
+    // multer then adds each PDF file in array (req.files)
     
     if (!providerName || !organizationName || !email) {
       return res.status(400).json({
@@ -21,40 +24,45 @@ exports.submitApplication = async (req, res) => {
       });
     }
     
-    if (!pdfFile) {
+    // Check for files array
+    if (!pdfFiles || pdfFiles.length === 0) {
       return res.status(400).json({
         success: false,
-        error: 'No PDF file uploaded'
+        error: 'No PDF files uploaded'
       });
     }
     
-    tempFilePath = pdfFile.path;
-    
-    // TODO: REMOVE CONSOLE.LOG - This is just for debugging to verify file upload and data received
     console.log('');
     console.log('===== NEW APPLICATION SUBMISSION =====');
     console.log(`Provider: ${providerName}`);
     console.log(`Organization: ${organizationName}`);
     console.log(`Email: ${email}`);
-    console.log(`File: ${pdfFile.originalname}`);
+    console.log(`Files: ${pdfFiles.length} PDFs`); // Show file count
+    pdfFiles.forEach((file, idx) => {
+      console.log(`  ${idx + 1}. ${file.originalname}`);
+    });
     console.log('');
     
-    // Step 1: Read PDF file
-    const pdfBuffer = fs.readFileSync(tempFilePath);
-    
-    if (!isValidPDF(pdfBuffer)) {
-      throw new Error('Invalid PDF file');
+    // Read all PDF files
+    const pdfBuffers = [];
+    for (const file of pdfFiles) {
+      const buffer = fs.readFileSync(file.path);
+      
+      if (!isValidPDF(buffer)) {
+        throw new Error(`Invalid PDF file: ${file.originalname}`);
+      }
+      
+      pdfBuffers.push(buffer);
+      tempFilePaths.push(file.path);
+      console.log(`  ${file.originalname}: ${getFileSizeMB(buffer)} MB`);
     }
-    
-    console.log(`File size: ${getFileSizeMB(pdfBuffer)} MB`);
-    
+
     let userId = null;
     if (req.user) {
-      userId = req.user.uid; 
+      userId = req.user.uid;
     }
 
     // Step 2: Create application record first (to get ID)
-    // Note: update with actual file data after upload
     const application = await createApplication({
       userId,
       providerName,
@@ -62,7 +70,7 @@ exports.submitApplication = async (req, res) => {
       email,
       status: 'Unreviewed',
       submittedDate: new Date(),
-      pdfFile: {}, // Placeholder, will update after upload
+      pdfFiles: [], // Empty array placeholder
       excelFile: null,
       mappings: [],
       missingCriteria: []
@@ -70,18 +78,18 @@ exports.submitApplication = async (req, res) => {
     
     console.log(`Application ID: ${application.applicationId}`);
     
-    // Step 3: Upload to Firebase Storage
-    const storageResult = await uploadToStorage(pdfBuffer, pdfFile.originalname, application.id);
+    // Upload all files to Firebase Storage
+    const filenames = pdfFiles.map(f => f.originalname);
+    const storageResults = await uploadMultipleToStorage(pdfBuffers, filenames, application.id);
     
-    // Step 4: Extract text from PDF
-    const pdfData = await extractTextFromPDF(pdfBuffer);
+    // Extract text from all PDFs
+    const pdfData = await extractTextFromMultiplePDFs(pdfBuffers, filenames);
     
-    // Step 5: Analyze with Groq
+    // Step 5: Analyze with Groq (using combined text)
     const competencies = getLevel1Competencies();
-    const analysis = await analyzeCurriculum(pdfData.text, competencies);
+    const analysis = await analyzeCurriculum(pdfData.combinedText, competencies);
 
     // Generate and upload filled Level 1 Excel
-    // const { fillAndUploadLevel1Excel } = require('../utils/excelFiller');
     let filledExcelResult = null;
     try {
       filledExcelResult = await fillAndUploadLevel1Excel(
@@ -91,19 +99,22 @@ exports.submitApplication = async (req, res) => {
       );
     } catch (excelErr) {
       console.error('Warning: Failed to generate filled Excel:', excelErr);
-      // Optional continue or throw if you want to block submission
     }
+
+    // Build pdfFiles array from storage results
+    const pdfFilesData = storageResults.map((result, idx) => ({
+      storagePath: result.storagePath,
+      publicUrl: result.publicUrl,
+      filename: result.filename,
+      uploadedAt: new Date(),
+      fileIndex: idx + 1
+    }));
 
     // Step 6: Update application with version 1 data
     const version1 = {
       version: 1,
       analyzedAt: new Date(),
-      pdfFile: {
-        storagePath: storageResult.storagePath,
-        publicUrl: storageResult.publicUrl,
-        filename: pdfFile.originalname,
-        uploadedAt: new Date()
-      },
+      pdfFiles: pdfFilesData,
       excelFile: filledExcelResult ? {
         storagePath: filledExcelResult.storagePath,
         publicUrl: filledExcelResult.publicUrl,
@@ -126,7 +137,10 @@ exports.submitApplication = async (req, res) => {
     console.log('========================================');
     console.log('');
     
-    fs.unlinkSync(tempFilePath);
+    // Clean up all temp files
+    tempFilePaths.forEach(path => {
+      if (fs.existsSync(path)) fs.unlinkSync(path);
+    });
     
     // Return response
     res.json({
@@ -141,19 +155,20 @@ exports.submitApplication = async (req, res) => {
         status: updatedApp.status,
         submittedDate: updatedApp.submittedDate,
         missingCriteria: updatedApp.missingCriteria,
-        mappingsCount: updatedApp.mappings ? updatedApp.mappings.length : 0
+        mappingsCount: updatedApp.mappings ? updatedApp.mappings.length : 0,
+        filesCount: pdfFilesData.length 
       }
-    }); 
+    });
     
   } catch (error) {
     console.error('');
     console.error('Error submitting application:', error);
     console.error('');
     
-    // Clean up temp file if exists
-    if (tempFilePath && fs.existsSync(tempFilePath)) {
-      fs.unlinkSync(tempFilePath);
-    }
+    // Clean up all temp files
+    tempFilePaths.forEach(path => {
+      if (fs.existsSync(path)) fs.unlinkSync(path);
+    });
     
     res.status(500).json({
       success: false,
@@ -167,11 +182,11 @@ exports.submitApplication = async (req, res) => {
  * No database creation, no Firebase upload
  */
 exports.analyzeCurriculum = async (req, res) => {
-  let tempFilePath = null;
+  const tempFilePaths = []; // Array to track all temp files
   
   try {
     const { providerName, organizationName } = req.body;
-    const pdfFile = req.file;
+    const pdfFiles = req.files;
     
     if (!providerName || !organizationName) {
       return res.status(400).json({
@@ -180,45 +195,56 @@ exports.analyzeCurriculum = async (req, res) => {
       });
     }
     
-    if (!pdfFile) {
+    if (!pdfFiles || pdfFiles.length === 0) {
       return res.status(400).json({
         success: false,
-        error: 'No PDF file uploaded'
+        error: 'No PDF files uploaded'
       });
     }
-    
-    tempFilePath = pdfFile.path;
     
     console.log('');
     console.log('===== ANALYZING CURRICULUM (PREVIEW) =====');
     console.log(`Provider: ${providerName}`);
     console.log(`Organization: ${organizationName}`);
-    console.log(`File: ${pdfFile.originalname}`);
+    console.log(`Files: ${pdfFiles.length} PDFs`);
+    pdfFiles.forEach((file, idx) => {
+      console.log(`  ${idx + 1}. ${file.originalname}`);
+    });
     console.log('');
     
-    // Read and validate PDF
-    const pdfBuffer = fs.readFileSync(tempFilePath);
+    // CHANGED: Read and validate all PDFs
+    const pdfBuffers = [];
+    const filenames = [];
     
-    if (!isValidPDF(pdfBuffer)) {
-      throw new Error('Invalid PDF file');
+    for (const file of pdfFiles) {
+      const buffer = fs.readFileSync(file.path);
+      
+      if (!isValidPDF(buffer)) {
+        throw new Error(`Invalid PDF file: ${file.originalname}`);
+      }
+      
+      pdfBuffers.push(buffer);
+      filenames.push(file.originalname);
+      tempFilePaths.push(file.path);
+      console.log(`  ${file.originalname}: ${getFileSizeMB(buffer)} MB`);
     }
     
-    console.log(`File size: ${getFileSizeMB(pdfBuffer)} MB`);
+    // CHANGED: Extract text from all PDFs
+    const pdfData = await extractTextFromMultiplePDFs(pdfBuffers, filenames);
     
-    // Extract text from PDF
-    const pdfData = await extractTextFromPDF(pdfBuffer);
-    
-    // Analyze with Groq
+    // Analyze with Groq (combined text)
     const competencies = getLevel1Competencies();
-    const analysis = await analyzeCurriculum(pdfData.text, competencies);
+    const analysis = await analyzeCurriculum(pdfData.combinedText, competencies);
     
     console.log('');
     console.log('Analysis complete (not saved)');
     console.log('========================================');
     console.log('');
     
-    // Clean up temp file
-    fs.unlinkSync(tempFilePath);
+    // Clean up all temp files
+    tempFilePaths.forEach(path => {
+      if (fs.existsSync(path)) fs.unlinkSync(path);
+    });
     
     // Return analysis results (nothing saved to DB or Firebase)
     res.json({
@@ -226,7 +252,8 @@ exports.analyzeCurriculum = async (req, res) => {
       analysis: {
         missingCriteria: analysis.missingCriteria || [],
         mappingsCount: analysis.mappings ? analysis.mappings.length : 0,
-        coveredCount: competencies.length - (analysis.missingCriteria ? analysis.missingCriteria.length : 0)
+        coveredCount: competencies.length - (analysis.missingCriteria ? analysis.missingCriteria.length : 0),
+        filesAnalyzed: pdfFiles.length // NEW: File count
       }
     });
     
@@ -235,9 +262,10 @@ exports.analyzeCurriculum = async (req, res) => {
     console.error('Error analyzing curriculum:', error);
     console.error('');
     
-    if (tempFilePath && fs.existsSync(tempFilePath)) {
-      fs.unlinkSync(tempFilePath);
-    }
+    // Clean up all temp files
+    tempFilePaths.forEach(path => {
+      if (fs.existsSync(path)) fs.unlinkSync(path);
+    });
     
     res.status(500).json({
       success: false,
@@ -293,7 +321,7 @@ exports.getMyApplicationDetails = async (req, res) => {
       });
     }
 
-    // Generate signed URLs for all versions
+    // Generate signed URLs for all files in all versions
     const versions = await Promise.all(
       (application.versions || []).map(async (version) => {
         const versionData = {
@@ -303,13 +331,16 @@ exports.getMyApplicationDetails = async (req, res) => {
           mappings: version.mappings || []
         };
 
-        // Add signed URL for PDF
-        if (version.pdfFile?.storagePath) {
-          versionData.pdfFile = {
-            filename: version.pdfFile.filename,
-            uploadedAt: version.pdfFile.uploadedAt,
-            signedUrl: await getSignedUrl(version.pdfFile.storagePath, 1)
-          };
+        // Add signed URLs for all PDF files
+        if (version.pdfFiles && version.pdfFiles.length > 0) {
+          versionData.pdfFiles = await Promise.all(
+            version.pdfFiles.map(async (pdf) => ({
+              filename: pdf.filename,
+              uploadedAt: pdf.uploadedAt,
+              fileIndex: pdf.fileIndex || 1,
+              signedUrl: await getSignedUrl(pdf.storagePath, 1)
+            }))
+          );
         }
 
         // Add signed URL for Excel
@@ -354,17 +385,17 @@ exports.getMyApplicationDetails = async (req, res) => {
  * Add a new revision to an existing application
  */
 exports.reviseApplication = async (req, res) => {
-  let tempFilePath = null;
+  const tempFilePaths = []; // Array to track all temp files
   
   try {
     const { id } = req.params;
     const userId = req.user.uid;
-    const pdfFile = req.file;
+    const pdfFiles = req.files;
     
-    if (!pdfFile) {
+    if (!pdfFiles || pdfFiles.length === 0) {
       return res.status(400).json({
         success: false,
-        error: 'No PDF file uploaded'
+        error: 'No PDF files uploaded'
       });
     }
     
@@ -386,31 +417,40 @@ exports.reviseApplication = async (req, res) => {
       });
     }
     
-    tempFilePath = pdfFile.path;
-    
     console.log('');
     console.log('===== APPLICATION REVISION =====');
     console.log(`Application ID: ${application.applicationId}`);
     console.log(`New Version: ${application.currentVersion + 1}`);
-    console.log(`File: ${pdfFile.originalname}`);
+    console.log(`Files: ${pdfFiles.length} PDFs`);
+    pdfFiles.forEach((file, idx) => {
+      console.log(`  ${idx + 1}. ${file.originalname}`);
+    });
     console.log('');
     
-    // Read and validate PDF
-    const pdfBuffer = fs.readFileSync(tempFilePath);
+    // Read and validate all PDFs
+    const pdfBuffers = [];
+    const filenames = [];
     
-    if (!isValidPDF(pdfBuffer)) {
-      throw new Error('Invalid PDF file');
+    for (const file of pdfFiles) {
+      const buffer = fs.readFileSync(file.path);
+      
+      if (!isValidPDF(buffer)) {
+        throw new Error(`Invalid PDF file: ${file.originalname}`);
+      }
+      
+      pdfBuffers.push(buffer);
+      filenames.push(file.originalname);
+      tempFilePaths.push(file.path);
+      console.log(`  ${file.originalname}: ${getFileSizeMB(buffer)} MB`);
     }
     
-    console.log(`File size: ${getFileSizeMB(pdfBuffer)} MB`);
+    // Upload all files to Firebase Storage
+    const storageResults = await uploadMultipleToStorage(pdfBuffers, filenames, application.id);
     
-    // Upload to Firebase Storage
-    const storageResult = await uploadToStorage(pdfBuffer, pdfFile.originalname, application.id);
-    
-    // Extract text and analyze
-    const pdfData = await extractTextFromPDF(pdfBuffer);
+    // Extract text from all PDFs and analyze
+    const pdfData = await extractTextFromMultiplePDFs(pdfBuffers, filenames);
     const competencies = getLevel1Competencies();
-    const analysis = await analyzeCurriculum(pdfData.text, competencies);
+    const analysis = await analyzeCurriculum(pdfData.combinedText, competencies);
     
     // Generate and upload filled Excel
     let filledExcelResult = null;
@@ -424,14 +464,18 @@ exports.reviseApplication = async (req, res) => {
       console.error('Warning: Failed to generate filled Excel on revision:', excelErr);
     }
     
+    // Build pdfFiles array from storage results
+    const pdfFilesData = storageResults.map((result, idx) => ({
+      storagePath: result.storagePath,
+      publicUrl: result.publicUrl,
+      filename: result.filename,
+      uploadedAt: new Date(),
+      fileIndex: idx + 1
+    }));
+    
     // Create new version object
     const revisionData = {
-      pdfFile: {
-        storagePath: storageResult.storagePath,
-        publicUrl: storageResult.publicUrl,
-        filename: pdfFile.originalname,
-        uploadedAt: new Date()
-      },
+      pdfFiles: pdfFilesData, 
       excelFile: filledExcelResult ? {
         storagePath: filledExcelResult.storagePath,
         publicUrl: filledExcelResult.publicUrl,
@@ -447,26 +491,30 @@ exports.reviseApplication = async (req, res) => {
     const updatedApp = await addRevision(application.id, revisionData);
     
     console.log('');
-    console.log('✅ Revision submitted successfully');
+    console.log('Revision submitted successfully');
     console.log('===================================');
     console.log('');
     
-    // Clean up temp file
-    fs.unlinkSync(tempFilePath);
+    // Clean up all temp files
+    tempFilePaths.forEach(path => {
+      if (fs.existsSync(path)) fs.unlinkSync(path);
+    });
     
     res.json({
       success: true,
       applicationId: updatedApp.applicationId,
       version: updatedApp.currentVersion,
-      missingCriteria: revisionData.missingCriteria
+      missingCriteria: revisionData.missingCriteria,
+      filesCount: pdfFilesData.length // NEW: File count
     });
     
   } catch (error) {
     console.error('Error revising application:', error);
     
-    if (tempFilePath && fs.existsSync(tempFilePath)) {
-      fs.unlinkSync(tempFilePath);
-    }
+    // Clean up all temp files
+    tempFilePaths.forEach(path => {
+      if (fs.existsSync(path)) fs.unlinkSync(path);
+    });
     
     res.status(500).json({
       success: false,

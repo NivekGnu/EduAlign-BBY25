@@ -20,7 +20,21 @@
     @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
     .file-upload-area { border: 2px dashed #C9C5C1; padding: 30px; text-align: center; border-radius: 4px; background: #FAFAFA; cursor: pointer; transition: all 0.3s; }
     .file-upload-area:hover { border-color: #ED8B00; background: #FFF9F0; }
-    .file-info { margin-top: 15px; padding: 10px; background: #E0EBEF; border-radius: 4px; }
+    .file-list { margin-top: 15px; }
+    .file-item { 
+      display: flex; 
+      justify-content: space-between; 
+      align-items: center; 
+      padding: 10px; 
+      background: #E0EBEF; 
+      border-radius: 4px; 
+      margin-bottom: 5px; 
+    }
+    .file-item-remove { 
+      cursor: pointer; 
+      color: #D32F2F; 
+      font-weight: bold; 
+    }
     .success-message { background-color: #E7E8D6; border-left: 4px solid #888D30; padding: 20px; margin: 20px 0; }
     .missing-criteria { background-color: #F9E0A0; border-left: 4px solid #F1BE48; padding: 20px; margin: 20px 0; }
     .analysis-results { background-color: #E0EBEF; border-left: 4px solid #6399AE; padding: 20px; margin: 20px 0; }
@@ -44,24 +58,23 @@
     <!-- Application Info Alert -->
     <div class="alert-warning">
       <h4><i class="fa fa-info-circle"></i> Revising Application <strong id="applicationId"></strong></h4>
-      <p>Upload your revised curriculum PDF. Previous versions will be kept for reference.</p>
+      <p><strong>Important:</strong> Please upload <strong>ALL</strong> your curriculum files (including any new or updated documents).</p>
+      <p style="margin-bottom: 0;">You can add, remove, or replace files from your previous submission. All files will be analyzed together as a complete package. Previous versions will be kept for reference.</p>
     </div>
     
     <!-- Revision form -->
     <form id="revisionForm">
       <div class="form-section">
         <h2 class="subtitle-orange">Upload Revised Curriculum</h2>
-        <label for="pdfFile" style="cursor: pointer; display: block;">
+        <label for="pdfFiles" style="cursor: pointer; display: block;">
           <div class="file-upload-area" id="dropZone">
             <i class="fa fa-upload fa-3x mb-3" style="color: #6399AE;"></i>
             <p><strong>Click to select file</strong> or drag and drop here</p>
-            <p class="text-muted">PDF format, maximum 10MB</p>
+            <p class="text-muted">PDF format, maximum 10MB per file, up to 10 files</p>
           </div>
         </label>
-        <input type="file" id="pdfFile" accept=".pdf" style="display: none;">
-        <div id="fileInfo" class="file-info" style="display: none;">
-          <i class="fa fa-file-pdf-o"></i> <span id="fileName"></span> (<span id="fileSize"></span>)
-        </div>
+        <input type="file" id="pdfFiles" accept=".pdf" multiple style="display: none;">
+        <div id="fileList" class="file-list" style="display: none;"></div>
       </div>
       
       <div class="text-center btn-group">
@@ -109,7 +122,7 @@
   
   <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
   <script>
-    let selectedFile = null;
+    let selectedFiles = [];
     let authToken = null;
     let analysisResults = null;
     let applicationId = null; // Database ID
@@ -163,10 +176,10 @@
     
     function setupFileUpload() {
       const dropZone = $('#dropZone');
-      const fileInput = $('#pdfFile');
+      const fileInput = $('#pdfFiles');
       
       fileInput.on('change', function(e) {
-        handleFileSelect(e.target.files[0]);
+        handleFileSelect(e.target.files);
       });
       
       dropZone.on('dragover', function(e) {
@@ -184,27 +197,74 @@
         $(this).css('border-color', '#C9C5C1');
         const files = e.originalEvent.dataTransfer.files;
         if (files.length > 0) {
-          handleFileSelect(files[0]);
+          handleFileSelect(files);
         }
       });
     }
     
-    function handleFileSelect(file) {
-      if (!file) return;
+    function handleFileSelect(files) {
+      if (!files || files.length === 0) return;
 
-      if (file.type !== 'application/pdf') {
-        alert('Please select a PDF file');
-        return;
+      const validFiles = [];
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        
+        if (file.type !== 'application/pdf') {
+          alert(`File "${file.name}" is not a PDF and will be skipped`);
+          continue;
+        }
+        if (file.size > 10 * 1024 * 1024) {
+          alert(`File "${file.name}" exceeds 10MB and will be skipped`);
+          continue;
+        }
+        
+        validFiles.push(file);
       }
-      if (file.size > 10 * 1024 * 1024) {
-        alert('File size must be less than 10MB');
+      
+      if (validFiles.length === 0) {
+        alert('No valid PDF files selected');
         return;
       }
       
-      selectedFile = file;
-      $('#fileName').text(file.name);
-      $('#fileSize').text((file.size / 1024 / 1024).toFixed(2) + ' MB');
-      $('#fileInfo').show();
+      if (validFiles.length > 10) {
+        alert('Maximum 10 files allowed. Only first 10 will be used.');
+        selectedFiles = validFiles.slice(0, 10);
+      } else {
+        selectedFiles = validFiles;
+      }
+      
+      displayFileList();
+    }
+
+    function displayFileList() {
+      const fileList = $('#fileList');
+      fileList.empty();
+      
+      if (selectedFiles.length === 0) {
+        fileList.hide();
+        return;
+      }
+      
+      selectedFiles.forEach((file, index) => {
+        const sizeInMB = (file.size / 1024 / 1024).toFixed(2);
+        const fileItem = $(`
+          <div class="file-item">
+            <span><i class="fa fa-file-pdf-o"></i> ${file.name} (${sizeInMB} MB)</span>
+            <span class="file-item-remove" data-index="${index}">
+              <i class="fa fa-times"></i> Remove
+            </span>
+          </div>
+        `);
+        fileList.append(fileItem);
+      });
+      
+      fileList.show();
+      
+      $('.file-item-remove').on('click', function() {
+        const index = $(this).data('index');
+        selectedFiles.splice(index, 1);
+        displayFileList();
+      });
     }
     
     function setupButtons() {
@@ -214,8 +274,8 @@
     }
     
     async function analyzeCurriculum() {
-      if (!selectedFile) {
-        alert('Please select a PDF file');
+      if (selectedFiles.length === 0) {
+        alert('Please select at least one PDF file');
         return;
       }
       
@@ -227,7 +287,9 @@
         const formData = new FormData();
         formData.append('providerName', 'Revision'); // Not used for analysis
         formData.append('organizationName', 'Revision'); // Not used for analysis
-        formData.append('pdf', selectedFile);
+        selectedFiles.forEach(file => {
+          formData.append('pdfs', file);
+        });
         
         const response = await fetch('/api/applications/analyze', {
           method: 'POST',
@@ -259,7 +321,7 @@
       const missingSection = $('#missingCriteriaSection');
       
       if (analysis.missingCriteria && analysis.missingCriteria.length > 0) {
-        $('#analysisMessage').html('The following competencies are still missing from your revised curriculum. You can upload a different PDF and re-analyze, or proceed to submit this revision.');
+        $('#analysisMessage').html(`Analyzed ${analysis.filesAnalyzed} file(s). The following competencies are still missing from your revised curriculum. You can upload different files and re-analyze, or proceed to submit this revision.`);
         
         let html = '<div class="missing-criteria">';
         html += '<h3><i class="fa fa-exclamation-triangle"></i> Missing Competencies</h3>';
@@ -271,7 +333,7 @@
         html += '</div>';
         missingSection.html(html);
       } else {
-        $('#analysisMessage').html('All competencies are now covered! You can proceed to submit your revision.');
+        $('#analysisMessage').html(`Analyzed ${analysis.filesAnalyzed} file(s). All competencies are now covered! You can proceed to submit your revision.`);
         missingSection.html('');
       }
     }
@@ -279,14 +341,14 @@
     function resetForm() {
       $('#analysisSection').hide();
       $('#revisionForm').show();
-      $('#fileInfo').hide();
-      $('#pdfFile').val('');
-      selectedFile = null;
+      $('#fileList').hide();
+      $('#pdfFiles').val('');
+      selectedFiles = [];
       analysisResults = null;
     }
     
     async function submitRevision() {
-      if (!selectedFile || !analysisResults) {
+      if (selectedFiles.length === 0 || !analysisResults) {
         alert('Please analyze your curriculum first');
         return;
       }
@@ -297,7 +359,9 @@
       
       try {
         const formData = new FormData();
-        formData.append('pdf', selectedFile);
+        selectedFiles.forEach(file => {
+          formData.append('pdfs', file);
+        });
         
         const response = await fetch(`/api/applications/revise/${applicationId}`, {
           method: 'POST',

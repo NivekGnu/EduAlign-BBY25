@@ -20,15 +20,29 @@
     @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
     .file-upload-area { border: 2px dashed #C9C5C1; padding: 30px; text-align: center; border-radius: 4px; background: #FAFAFA; cursor: pointer; transition: all 0.3s; }
     .file-upload-area:hover { border-color: #ED8B00; background: #FFF9F0; }
-    .file-info { margin-top: 15px; padding: 10px; background: #E0EBEF; border-radius: 4px; }
+    .file-list { margin-top: 15px; }
+    .file-item { 
+      display: flex; 
+      justify-content: space-between; 
+      align-items: center; 
+      padding: 10px; 
+      background: #E0EBEF; 
+      border-radius: 4px; 
+      margin-bottom: 5px; 
+    }
+    .file-item-remove { 
+      cursor: pointer; 
+      color: #D32F2F; 
+      font-weight: bold; 
+    }
     .success-message { background-color: #E7E8D6; border-left: 4px solid #888D30; padding: 20px; margin: 20px 0; }
     .missing-criteria { background-color: #F9E0A0; border-left: 4px solid #F1BE48; padding: 20px; margin: 20px 0; }
-    /* NEW: Analysis results styling */
+    /* Analysis results styling */
     .analysis-results { background-color: #E0EBEF; border-left: 4px solid #6399AE; padding: 20px; margin: 20px 0; }
-    /* NEW: Hide analysis section by default */
+    /* Hide analysis section by default */
     #analysisSection { display: none; }
     #resultsSection { display: none; }
-    /* NEW: Button group styling for side-by-side buttons */
+    /* Button group styling for side-by-side buttons */
     .btn-group { display: flex; gap: 10px; justify-content: center; }
   </style> 
   
@@ -64,19 +78,17 @@
       <!-- Upload file section -->
       <div class="form-section">
         <h2 class="subtitle-orange">Course Curriculum</h2>
-        <label for="pdfFile" style="cursor: pointer; display: block;">
+        <label for="pdfFiles" style="cursor: pointer; display: block;">
           <!-- Drag and drop area for file upload -->
           <div class="file-upload-area" id="dropZone">
             <i class="fa fa-upload fa-3x mb-3" style="color: #6399AE;"></i>
             <p><strong>Click to select file</strong> or drag and drop here</p>
-            <p class="text-muted">PDF format, maximum 10MB</p>
+            <p class="text-muted">PDF format, maximum 10MB per file, up to 10 files</p>
           </div>
         </label>
         <!-- Restrict to ONLY PDF -->
-        <input type="file" id="pdfFile" accept=".pdf" style="display: none;">
-        <div id="fileInfo" class="file-info" style="display: none;">
-          <i class="fa fa-file-pdf-o"></i> <span id="fileName"></span> (<span id="fileSize"></span>)
-        </div>
+        <input type="file" id="pdfFiles" accept=".pdf" multiple style="display: none;">
+        <div id="fileList" class="file-list" style="display: none;"></div>
       </div>
       
       <!-- NEW: Analyze button (replaces direct submit) -->
@@ -130,7 +142,7 @@
   <!-- jQuery for simplified DOM manipulation -->
   <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
   <script>
-    let selectedFile = null;
+    let selectedFiles = [];
     let authToken = null;
     // NEW: Store analysis results to use during final submission
     let analysisResults = null;
@@ -175,13 +187,13 @@
     // set up file upload functionality (click to upload or drag+drop)
     function setupFileUpload() {
       const dropZone = $('#dropZone');
-      const fileInput = $('#pdfFile');
+      const fileInput = $('#pdfFiles');
       
       // label for="pdfFile",
       // when clicking on that label, trigger click on "pdfFile"
       // opens system file dialog to select file
       fileInput.on('change', function(e) {
-        handleFileSelect(e.target.files[0]);
+        handleFileSelect(e.target.files);
       });
       
       // Highlight drop zone if drag over zone
@@ -202,31 +214,77 @@
         $(this).css('border-color', '#C9C5C1');
         const files = e.originalEvent.dataTransfer.files;
         if (files.length > 0) {
-          handleFileSelect(files[0]);
+          handleFileSelect(files);
         }
       });
     }
     
     // Validate and store file in memory (via selectedFile)
-    function handleFileSelect(file) {
-      if (!file) return;
+    function handleFileSelect(files) {
+      if (!files || files.length === 0) return;
 
-      // Restrict to ONLY PDF
-      if (file.type !== 'application/pdf') {
-        alert('Please select a PDF file');
-        return;
+      // Validate each file
+      const validFiles = [];
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        
+        if (file.type !== 'application/pdf') {
+          alert(`File "${file.name}" is not a PDF and will be skipped`);
+          continue;
+        }
+        if (file.size > 10 * 1024 * 1024) {
+          alert(`File "${file.name}" exceeds 10MB and will be skipped`);
+          continue;
+        }
+        
+        validFiles.push(file);
       }
-      // Restrict to max 10 MB
-      if (file.size > 10 * 1024 * 1024) {
-        alert('File size must be less than 10MB');
+      
+      if (validFiles.length === 0) {
+        alert('No valid PDF files selected');
         return;
       }
       
-      // Store file in memory and populate info
-      selectedFile = file;
-      $('#fileName').text(file.name);
-      $('#fileSize').text((file.size / 1024 / 1024).toFixed(2) + ' MB');
-      $('#fileInfo').show();
+      if (validFiles.length > 10) {
+        alert('Maximum 10 files allowed. Only first 10 will be used.');
+        selectedFiles = validFiles.slice(0, 10);
+      } else {
+        selectedFiles = validFiles;
+      }
+      
+      displayFileList();
+    }
+
+    function displayFileList() {
+      const fileList = $('#fileList');
+      fileList.empty();
+      
+      if (selectedFiles.length === 0) {
+        fileList.hide();
+        return;
+      }
+      
+      selectedFiles.forEach((file, index) => {
+        const sizeInMB = (file.size / 1024 / 1024).toFixed(2);
+        const fileItem = $(`
+          <div class="file-item">
+            <span><i class="fa fa-file-pdf-o"></i> ${file.name} (${sizeInMB} MB)</span>
+            <span class="file-item-remove" data-index="${index}">
+              <i class="fa fa-times"></i> Remove
+            </span>
+          </div>
+        `);
+        fileList.append(fileItem);
+      });
+      
+      fileList.show();
+      
+      // Add remove handlers
+      $('.file-item-remove').on('click', function() {
+        const index = $(this).data('index');
+        selectedFiles.splice(index, 1);
+        displayFileList();
+      });
     }
     
     // NEW: Setup button click handlers for new three-button flow
@@ -239,8 +297,8 @@
     // NEW: Analyze curriculum without saving (preview only)
     // Calls /api/applications/analyze endpoint
     async function analyzeCurriculum() {
-      if (!selectedFile) {
-        alert('Please select a PDF file');
+      if (selectedFiles.length === 0) {
+        alert('Please select at least one PDF file');
         return;
       }
       
@@ -259,7 +317,9 @@
         const formData = new FormData();
         formData.append('providerName', $('#providerName').val());
         formData.append('organizationName', $('#organizationName').val());
-        formData.append('pdf', selectedFile);
+        selectedFiles.forEach(file => {
+          formData.append('pdfs', file);
+        });
         
         // Call analyze endpoint (does NOT save to database)
         const response = await fetch('/api/applications/analyze', {
@@ -296,7 +356,7 @@
       
       if (analysis.missingCriteria && analysis.missingCriteria.length > 0) {
         // Show message about missing competencies
-        $('#analysisMessage').html('The following competencies are missing from your curriculum. Please revise your course materials and reupload, or proceed to submit as-is (not recommended).');
+        $('#analysisMessage').html(`Analyzed ${analysis.filesAnalyzed} file(s). The following competencies are missing from your curriculum. Please revise your course materials and reupload, or proceed to submit as-is (not recommended).`);
         
         let html = '<div class="missing-criteria">';
         html += '<h3><i class="fa fa-exclamation-triangle"></i> Missing Competencies</h3>';
@@ -309,7 +369,7 @@
         missingSection.html(html);
       } else {
         // Show success message
-        $('#analysisMessage').html('All competencies are covered! You can proceed to submit your application.');
+        $('#analysisMessage').html(`Analyzed ${analysis.filesAnalyzed} file(s). All competencies are covered! You can proceed to submit your application.`);
         missingSection.html('');
       }
     }
@@ -319,16 +379,16 @@
     function resetForm() {
       $('#analysisSection').hide();
       $('#applicationForm').show();
-      $('#fileInfo').hide();
-      $('#pdfFile').val('');
-      selectedFile = null;
+      $('#fileList').hide();
+      $('#pdfFiles').val('');
+      selectedFiles = [];
       analysisResults = null;
     }
     
     // NEW: Submit application after analysis (final commit)
     // This is when everything gets saved to database and Firebase
     async function submitApplication() {
-      if (!selectedFile || !analysisResults) {
+      if (selectedFiles.length === 0 || !analysisResults) {
         alert('Please analyze your curriculum first');
         return;
       }
@@ -342,7 +402,9 @@
         const formData = new FormData();
         formData.append('providerName', $('#providerName').val());
         formData.append('organizationName', $('#organizationName').val());
-        formData.append('pdf', selectedFile);
+        selectedFiles.forEach(file => {
+          formData.append('pdfs', file);
+        });
         
         // Call submit endpoint (NOW saves to database and Firebase)
         const response = await fetch('/api/applications/submit', {

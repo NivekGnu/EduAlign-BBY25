@@ -304,8 +304,13 @@
           
           html += '<h6>Documents</h6><ul>';
           
-          if (v.pdfFile) {
-            html += `<li><a href="${v.pdfFile.signedUrl}" target="_blank">${v.pdfFile.filename}</a></li>`;
+          // CHANGED: Show all PDF files
+          if (v.pdfFiles && v.pdfFiles.length > 0) {
+            // html += '<li><strong>Curriculum Files:</strong><ul>';
+            v.pdfFiles.forEach(pdf => {
+              html += `<li><a href="${pdf.signedUrl}" target="_blank">${pdf.filename}</a></li>`;
+            });
+            // html += '</ul></li>';
           }
           
           if (v.excelFile) {

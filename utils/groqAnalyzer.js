@@ -33,7 +33,7 @@ async function analyzeCurriculum(pdfText, competencies) {
         }
       ],
       model: "llama-3.3-70b-versatile", 
-      temperature: 0.3, //randomness of AI. 0.0 = deterministic, 1.0 = creative. 
+      temperature: 0.0, //randomness of AI. 0.0 = deterministic, 1.0 = creative. 
       max_tokens: 8000, //we are limiting the AI response to 8000 
       response_format: { type: "json_object" } //response format must be JSON
     });
@@ -71,17 +71,18 @@ async function analyzeCurriculum(pdfText, competencies) {
  * @returns {String} Formatted prompt
  */
 function buildPrompt(pdfText, competencies) {
-  //PDF text limited to ~30k characters for Groq
-  const limitedText = pdfText.substring(0, 30000);
+  // Groq free tier has 100k token daily limit
+  const limitedText = pdfText.substring(0, 50000);
   
   //loops through the array, numbers, and joins them. 
   const competencyList = competencies.map((c, i) => 
     `${i + 1}. ${c.text}`
   ).join('\n');
   
-  return `You are analyzing a training course curriculum document to map it to WorkSafeBC asbestos abatement training competencies (Level 1 Certification).
+  return `You are analyzing training course curriculum documents to map them to WorkSafeBC asbestos abatement training competencies (Level 1 Certification).
 
-**COURSE CONTENT:**
+**COURSE CONTENTS:**
+(Multiple files may be provided. Each file is separated by "========== FILE: filename ==========" markers)
 ${limitedText}
 
 **COMPETENCIES TO MAP:**
@@ -135,7 +136,7 @@ Analyze which competencies are covered in the course material.
 - Missing competencies go ONLY in "missingCriteria"
 - Every competency must appear in either mappings OR missingCriteria (not both)
 - Match capitalization and spacing EXACTLY for howTaught and howAssessed
-- WHERE must include resource/document name AND page numbers (e.g., "Curriculum PDF, Pages 5-7", "Training Manual, Page 10")
+- WHERE must include the filename (from FILE markers) and page numbers when available
 - Return ONLY valid JSON, no explanatory text`;
 }
 

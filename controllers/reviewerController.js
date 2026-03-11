@@ -101,13 +101,16 @@ exports.getApplicationDetails = async (req, res) => {
           mappings: version.mappings || []
         };
 
-        // Add signed URL for PDF
-        if (version.pdfFile?.storagePath) {
-          versionData.pdfFile = {
-            filename: version.pdfFile.filename,
-            uploadedAt: version.pdfFile.uploadedAt,
-            signedUrl: await getSignedUrl(version.pdfFile.storagePath, 1)
-          };
+        // Add signed URLs for all PDFs
+        if (version.pdfFiles && version.pdfFiles.length > 0) {
+          versionData.pdfFiles = await Promise.all(
+            version.pdfFiles.map(async (pdf) => ({
+              filename: pdf.filename,
+              uploadedAt: pdf.uploadedAt,
+              fileIndex: pdf.fileIndex || 1,
+              signedUrl: await getSignedUrl(pdf.storagePath, 1)
+            }))
+          );
         }
 
         // Add signed URL for Excel

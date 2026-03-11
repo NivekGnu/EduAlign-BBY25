@@ -81,6 +81,9 @@ function buildPrompt(pdfText, competencies) {
   
   return `You are analyzing a training course curriculum document to map it to WorkSafeBC asbestos abatement training competencies (Level 1 Certification).
 
+**DOCUMENT NAME:**
+Asbestos Awareness Waste Handling and Disposal Level 1
+
 **COURSE CONTENT:**
 ${limitedText}
 
@@ -88,33 +91,55 @@ ${limitedText}
 ${competencyList}
 
 **YOUR TASK:**
-For each competency, identify:
-1. WHERE in the course material this competency is covered (specific section, page number, or resource name)
-2. HOW it is taught (lecture, demonstration, hands-on practice, video, discussion, case study, or other)
-3. HOW it is assessed (written exam, practical test, quiz, observation, project/assignment, other, or not assessed)
+Analyze which competencies are covered in the course material.
 
-If a competency is NOT adequately covered in the course material, mark it as MISSING.
+**For COVERED competencies, provide:**
+1. WHERE: Include the resource/document name and/or page number(s) (e.g., "Curriculum PDF, Pages 19-22", "Training Manual, Page 5", "Student Workbook")
+2. HOW TAUGHT: Select EXACTLY ONE from these 5 options:
+   - In-class: Instructor Presentation
+   - Online: Resource Material
+   - In-class: Demonstration
+   - Online: Demonstration
+   - Participant Activity
+3. HOW ASSESSED: Select EXACTLY ONE from these 4 options:
+   - In-class: Quiz
+   - Online: Quiz
+   - In-class: Practical Skills Observation
+   - N / A
+
+**For MISSING/NOT COVERED competencies:**
+- Do NOT include in mappings
+- List in missingCriteria with reason (e.g., "not found" or "insufficiently covered")
 
 **RESPOND WITH ONLY THIS JSON FORMAT (pure JSON, no markdown):**
 {
   "mappings": [
     {
       "competencyIndex": 1,
-      "where": "Section 2.3, Pages 45-47; Training Video Module 3",
-      "howTaught": "Lecture and Video",
-      "howAssessed": "Written exam and Quiz"
+      "where": "Curriculum PDF, Pages 19-22",
+      "howTaught": "In-class: Instructor Presentation",
+      "howAssessed": "In-class: Quiz"
+    },
+    {
+      "competencyIndex": 2,
+      "where": "Student Workbook",
+      "howTaught": "Online: Resource Material",
+      "howAssessed": "Online: Quiz"
     }
   ],
   "missingCriteria": [
-    "Competency #5: Describe the abatement process - not found in curriculum"
+    "Competency #5: Describe the abatement process - not found in curriculum",
+    "Competency #12: External expertise requirements - insufficiently covered"
   ]
 }
 
-**IMPORTANT RULES:**
-- Be specific about locations (page numbers, section names, module titles)
-- Only mark as MISSING if truly absent or insufficiently covered
-- Return ONLY valid JSON, no explanatory text
-- Include ALL competencies in either mappings or missingCriteria`;
+**CRITICAL RULES:**
+- Only include covered competencies in "mappings"
+- Missing competencies go ONLY in "missingCriteria"
+- Every competency must appear in either mappings OR missingCriteria (not both)
+- Match capitalization and spacing EXACTLY for howTaught and howAssessed
+- WHERE must include resource/document name AND page numbers (e.g., "Curriculum PDF, Pages 5-7", "Training Manual, Page 10")
+- Return ONLY valid JSON, no explanatory text`;
 }
 
 /**

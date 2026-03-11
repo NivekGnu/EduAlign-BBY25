@@ -81,9 +81,6 @@ function buildPrompt(pdfText, competencies) {
   
   return `You are analyzing a training course curriculum document to map it to WorkSafeBC asbestos abatement training competencies (Level 1 Certification).
 
-**DOCUMENT NAME:**
-Asbestos Awareness Waste Handling and Disposal Level 1
-
 **COURSE CONTENT:**
 ${limitedText}
 
@@ -94,7 +91,7 @@ ${competencyList}
 Analyze which competencies are covered in the course material.
 
 **For COVERED competencies, provide:**
-1. WHERE: Include the resource/document name and/or page number(s) (e.g., "Curriculum PDF, Pages 19-22", "Training Manual, Page 5", "Student Workbook")
+1. WHERE: Include the resource/document name and page number(s) if applicable
 2. HOW TAUGHT: Select EXACTLY ONE from these 5 options:
    - In-class: Instructor Presentation
    - Online: Resource Material
@@ -116,7 +113,7 @@ Analyze which competencies are covered in the course material.
   "mappings": [
     {
       "competencyIndex": 1,
-      "where": "Curriculum PDF, Pages 19-22",
+      "where": "Asbestos Awareness Waste Handling and Disposal Level 1 PDF, Pages 19-22",
       "howTaught": "In-class: Instructor Presentation",
       "howAssessed": "In-class: Quiz"
     },

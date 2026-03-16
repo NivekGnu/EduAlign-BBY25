@@ -47,6 +47,7 @@ async function createApplication(data) {
       version: 1,
       analyzedAt: new Date(),
       pdfFiles: data.pdfFiles || [], 
+      packageFiles: data.packageFiles || [],
       excelFile: data.excelFile || null,
       missingCriteria: data.missingCriteria || [],
       mappings: data.mappings || []
@@ -75,10 +76,10 @@ async function createApplication(data) {
     await docRef.update({ applicationId });
     
     return {
+      ...docData,
       id: doc.id,
       _id: doc.id,
-      applicationId,
-      ...docData
+      applicationId
     };
   } catch (error) {
     console.error('Error creating application:', error);
@@ -104,9 +105,9 @@ async function getApplicationById(id) {
     }
     
     return {
+      ...doc.data(),
       id: doc.id,
-      _id: doc.id, // For compatibility
-      ...doc.data()
+      _id: doc.id
     };
   } catch (error) {
     console.error('Error getting application:', error);
@@ -170,6 +171,7 @@ async function addRevision(id, revisionData) {
       version: newVersionNumber,
       analyzedAt: new Date(),
       pdfFiles: revisionData.pdfFiles || [],
+      packageFiles: revisionData.packageFiles || [],
       excelFile: revisionData.excelFile || null,
       missingCriteria: revisionData.missingCriteria || [],
       mappings: revisionData.mappings || []
@@ -230,9 +232,9 @@ async function getAllApplications(filters = {}) {
     const applications = [];
     snapshot.forEach(doc => {
       applications.push({
+        ...doc.data(),
         id: doc.id,
-        _id: doc.id, // For compatibility
-        ...doc.data()
+        _id: doc.id
       });
     });
     
@@ -298,7 +300,7 @@ async function getStats() {
     });
     
     return {
-      total: snapshot.size,
+      total: unreviewed + incomplete + approved, // Exclude drafts from total
       unreviewed,
       incomplete,
       approved

@@ -3,16 +3,19 @@ const { getSignedUrl } = require('../utils/firebaseStorage');
 
 /**
  * Get all applications for reviewer dashboard
+ * Excludes Draft applications (incomplete submissions)
  */
 exports.getApplications = async (req, res) => {
   try {
     const applications = await getAllApplications();
+    // Filter out Draft applications - reviewers should only see submitted ones
+    const submittedApplications = applications.filter(app => app.status !== 'Draft');
     const stats = await getStats();
     
     res.json({
       success: true,
       stats,
-      applications
+      applications: submittedApplications
     });
     
   } catch (error) {
@@ -78,6 +81,7 @@ exports.updateStatus = async (req, res) => {
 
 /**
  * Get full application details with signed URLs for downloads
+ * Includes curriculum files, package files, and Excel files
  */
 exports.getApplicationDetails = async (req, res) => {
   try {
@@ -109,6 +113,19 @@ exports.getApplicationDetails = async (req, res) => {
               uploadedAt: pdf.uploadedAt,
               fileIndex: pdf.fileIndex || 1,
               signedUrl: await getSignedUrl(pdf.storagePath, 1)
+            }))
+          );
+        }
+        
+        // Signed URLs for package files (application form, course outline, admin docs)
+        if (version.packageFiles && version.packageFiles.length > 0) {
+          versionData.packageFiles = await Promise.all(
+            version.packageFiles.map(async (pkg) => ({
+              filename: pkg.filename,
+              label: pkg.label || 'Package Document',
+              uploadedAt: pkg.uploadedAt,
+              fileIndex: pkg.fileIndex || 1,
+              signedUrl: await getSignedUrl(pkg.storagePath, 1)
             }))
           );
         }

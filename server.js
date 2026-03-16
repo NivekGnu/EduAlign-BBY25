@@ -77,6 +77,10 @@ app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'landing.html'));  // 
 });
 
+// application-package.html; Step 2 of application submission
+app.get('/application-package', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'application-package.html'));
+});
 
 // reviewer.html; WorkSafeBC reviewer dashboard to review applications
 app.get('/reviewer', (req, res) => {

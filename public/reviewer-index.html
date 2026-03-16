@@ -13,7 +13,6 @@
     .main-container { max-width: 1400px; margin: 0 auto; background: white; padding: 40px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
     .logo { max-width: 200px; margin-bottom: 30px; }
     #loginSection { max-width: 500px; margin: 100px auto; text-align: center; }
-    /* #dashboardSection { display: none; } */
     .stats-row { display: flex; gap: 20px; margin-bottom: 30px; }
     .stat-card { flex: 1; background: linear-gradient(135deg, #6399AE 0%, #4A7A8A 100%); color: white; padding: 20px; border-radius: 4px; text-align: center; }
     .stat-card h3 { margin: 0; font-size: 36px; font-weight: bold; }
@@ -26,6 +25,10 @@
     .accordion .card-body { padding: 20px; background-color: white; }
     .accordion .card-body h6 { color: #ED8B00; margin-top: 15px; margin-bottom: 10px; }
     .accordion .card-body h6:first-child { margin-top: 0; }
+    /* Document category styling */
+    .doc-category { margin-top: 10px; }
+    .doc-category-label { font-weight: bold; color: #003366; font-size: 13px; margin-bottom: 5px; }
+    .doc-category ul { margin-bottom: 10px; }
   </style>
 </head>
 <body>
@@ -302,22 +305,35 @@
             html += '<p class="text-success">All competencies covered!</p>';
           }
           
-          html += '<h6>Documents</h6><ul>';
-          
-          // CHANGED: Show all PDF files
+          // Curriculum Documents section
+          html += '<h6>Curriculum Documents</h6>';
           if (v.pdfFiles && v.pdfFiles.length > 0) {
-            // html += '<li><strong>Curriculum Files:</strong><ul>';
+            html += '<ul>';
             v.pdfFiles.forEach(pdf => {
-              html += `<li><a href="${pdf.signedUrl}" target="_blank">${pdf.filename}</a></li>`;
+              html += `<li><a href="${pdf.signedUrl}" target="_blank"><i class="fa fa-file-pdf-o"></i> ${pdf.filename}</a></li>`;
             });
-            // html += '</ul></li>';
+            html += '</ul>';
+          } else {
+            html += '<p class="text-muted">No curriculum files</p>';
           }
           
+          // Application Package Documents section
+          if (v.packageFiles && v.packageFiles.length > 0) {
+            html += '<h6>Application Package Documents</h6><ul>';
+            v.packageFiles.forEach(pkg => {
+              html += `<li><a href="${pkg.signedUrl}" target="_blank"><i class="fa fa-file-pdf-o"></i> ${pkg.filename}</a> <span class="text-muted">(${pkg.label})</span></li>`;
+            });
+            html += '</ul>';
+          }
+          
+          // Generated Excel
           if (v.excelFile) {
-            html += `<li><a href="${v.excelFile.signedUrl}" target="_blank">${v.excelFile.filename}</a></li>`;
+            html += '<h6>Generated Competency Mapping</h6><ul>';
+            html += `<li><a href="${v.excelFile.signedUrl}" target="_blank"><i class="fa fa-file-excel-o"></i> ${v.excelFile.filename}</a></li>`;
+            html += '</ul>';
           }
           
-          html += '</ul></div></div></div>';
+          html += '</div></div></div>';
         });
         
         html += '</div>';

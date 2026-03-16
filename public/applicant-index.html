@@ -27,6 +27,10 @@
       .accordion .card-body { padding: 20px; background-color: white; }
       .accordion .card-body h6 { color: #ED8B00; margin-top: 15px; margin-bottom: 10px; }
       .accordion .card-body h6:first-child { margin-top: 0; }
+      /* Document category styling */
+      .doc-category { margin-top: 10px; }
+      .doc-category-label { font-weight: bold; color: #003366; font-size: 13px; margin-bottom: 5px; }
+      .doc-category ul { margin-bottom: 10px; }
     </style>
   </head>
   <body>
@@ -245,7 +249,6 @@
           } else {
             html += '<div class="accordion" id="versionAccordion">';
             
-            // Sort versions in reverse order (newest first)
             const sortedVersions = [...versions].sort((a, b) => b.version - a.version);
             
             sortedVersions.forEach((v, index) => {
@@ -277,22 +280,35 @@
                 html += '<p class="text-success">All competencies covered!</p>';
               }
               
-              html += '<h6>Documents</h6><ul>';
-              
-              // CHANGED: Show all PDF files
+              // Curriculum Documents section
+              html += '<h6>Curriculum Documents</h6>';
               if (v.pdfFiles && v.pdfFiles.length > 0) {
-                // html += '<li><strong>Curriculum Files:</strong><ul>';
+                html += '<ul>';
                 v.pdfFiles.forEach(pdf => {
-                  html += `<li><a href="${pdf.signedUrl}" target="_blank">${pdf.filename}</a></li>`;
+                  html += `<li><a href="${pdf.signedUrl}" target="_blank"><i class="fa fa-file-pdf-o"></i> ${pdf.filename}</a></li>`;
                 });
-                // html += '</ul></li>';
+                html += '</ul>';
+              } else {
+                html += '<p class="text-muted">No curriculum files</p>';
               }
               
+              // Application Package Documents section
+              if (v.packageFiles && v.packageFiles.length > 0) {
+                html += '<h6>Application Package Documents</h6><ul>';
+                v.packageFiles.forEach(pkg => {
+                  html += `<li><a href="${pkg.signedUrl}" target="_blank"><i class="fa fa-file-pdf-o"></i> ${pkg.filename}</a> <span class="text-muted">(${pkg.label})</span></li>`;
+                });
+                html += '</ul>';
+              }
+              
+              // Generated Excel
               if (v.excelFile) {
-                html += `<li><a href="${v.excelFile.signedUrl}" target="_blank">${v.excelFile.filename}</a></li>`;
+                html += '<h6>Generated Competency Mapping</h6><ul>';
+                html += `<li><a href="${v.excelFile.signedUrl}" target="_blank"><i class="fa fa-file-excel-o"></i> ${v.excelFile.filename}</a></li>`;
+                html += '</ul>';
               }
               
-              html += '</ul></div></div></div>';
+              html += '</div></div></div>';
             });
             
             html += '</div>';

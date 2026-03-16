@@ -41,7 +41,6 @@
     .analysis-results { background-color: #E0EBEF; border-left: 4px solid #6399AE; padding: 20px; margin: 20px 0; }
     /* Hide analysis section by default */
     #analysisSection { display: none; }
-    #resultsSection { display: none; }
     /* Button group styling for side-by-side buttons */
     .btn-group { display: flex; gap: 10px; justify-content: center; }
   </style> 
@@ -59,6 +58,19 @@
     <h1>Asbestos Abatement Training Provider Application</h1>
     <p class="mb-4">Submit your training curriculum for WorkSafeBC approval.</p>
     
+    <!-- Step indicator -->
+    <div style="display: flex; align-items: center; margin-bottom: 30px; padding: 15px; background: #F8F8F8; border-radius: 4px;">
+      <div style="display: flex; align-items: center;">
+        <span style="background: #6399AE; color: white; border-radius: 50%; width: 30px; height: 30px; display: inline-flex; align-items: center; justify-content: center; font-weight: bold; margin-right: 8px;">1</span>
+        <strong style="color: #003366;">Curriculum Analysis</strong>
+      </div>
+      <span style="margin: 0 15px; color: #C9C5C1;">&#9654;</span>
+      <div style="display: flex; align-items: center;">
+        <span style="background: #C9C5C1; color: white; border-radius: 50%; width: 30px; height: 30px; display: inline-flex; align-items: center; justify-content: center; font-weight: bold; margin-right: 8px;">2</span>
+        <span style="color: #999;">Application Package</span>
+      </div>
+    </div>
+
     <!-- Application form -->
     <form id="applicationForm">
       <div class="form-section">
@@ -78,6 +90,7 @@
       <!-- Upload file section -->
       <div class="form-section">
         <h2 class="subtitle-orange">Course Curriculum</h2>
+        <p class="text-muted">Upload your training curriculum documents for AI-powered competency analysis.</p>
         <label for="pdfFiles" style="cursor: pointer; display: block;">
           <!-- Drag and drop area for file upload -->
           <div class="file-upload-area" id="dropZone">
@@ -117,24 +130,14 @@
       <!-- Missing competencies details -->
       <div id="missingCriteriaSection"></div>
       
-      <!-- Two-button choice: re-analyze or submit -->
+      <!-- Two-button choice: re-analyze or continue to package -->
       <div class="text-center btn-group">
         <button type="button" id="reanalyzeButton" class="btn btn-outline-blue btn-lg">
           <i class="fa fa-refresh"></i> Upload Different PDF
         </button>
-        <button type="button" id="submitButton" class="btn btn-orange btn-lg">
-          <i class="fa fa-paper-plane"></i> Submit Application
+        <button type="button" id="continueButton" class="btn btn-orange btn-lg">
+          <i class="fa fa-arrow-right"></i> Continue to Application Package
         </button>
-      </div>
-    </div>
-    
-    <!-- Final submission results section -->
-    <div id="resultsSection">
-      <div class="success-message">
-        <h3><i class="fa fa-check-circle"></i> Application Submitted Successfully</h3>
-        <p>Your application ID: <strong id="applicationId"></strong></p>
-        <!-- NEW: Link to view all applications -->
-        <p><a href="/applicant-index.html" class="btn btn-blue mt-3">View My Applications</a></p>
       </div>
     </div>
   </div>
@@ -290,7 +293,7 @@
     function setupButtons() {
       $('#analyzeButton').on('click', analyzeCurriculum);
       $('#reanalyzeButton').on('click', resetForm);
-      $('#submitButton').on('click', submitApplication);
+      $('#continueButton').on('click', continueToPackage);
     }
     
     // NEW: Analyze curriculum without saving (preview only)
@@ -355,7 +358,7 @@
       
       if (analysis.missingCriteria && analysis.missingCriteria.length > 0) {
         // Show message about missing competencies
-        $('#analysisMessage').html(`Analyzed ${analysis.filesAnalyzed} file(s). The following competencies are missing from your curriculum. Please revise your course materials and reupload, or proceed to submit as-is (not recommended).`);
+        $('#analysisMessage').html(`Analyzed ${analysis.filesAnalyzed} file(s). The following competencies are missing from your curriculum. You may upload different files and re-analyze, or continue to the application package.`);
         
         let html = '<div class="missing-criteria">';
         html += '<h3><i class="fa fa-exclamation-triangle"></i> Missing Competencies</h3>';
@@ -368,7 +371,7 @@
         missingSection.html(html);
       } else {
         // Show success message
-        $('#analysisMessage').html(`Analyzed ${analysis.filesAnalyzed} file(s). All competencies are covered! You can proceed to submit your application.`);
+        $('#analysisMessage').html(`Analyzed ${analysis.filesAnalyzed} file(s). All competencies are covered! Please continue to complete your application package.`);
         missingSection.html('');
       }
     }
@@ -384,9 +387,8 @@
       analysisResults = null;
     }
     
-    // NEW: Submit application after analysis (final commit)
-    // This is when everything gets saved to database and Firebase
-    async function submitApplication() {
+    // Create draft application and redirect to application package page
+    async function continueToPackage() {
       if (selectedFiles.length === 0 || !analysisResults) {
         alert('Please analyze your curriculum first');
         return;
@@ -394,7 +396,7 @@
       
       $('#analysisSection').hide();
       $('#loadingSection').show();
-      $('#loadingText').text('Submitting your application...');
+      $('#loadingText').text('Saving your curriculum analysis...');
       
       try {
         // Prepare form data for multipart upload
@@ -406,8 +408,9 @@
           formData.append('pdfs', file);
         });
         
-        // Call submit endpoint (NOW saves to database and Firebase)
-        const response = await fetch('/api/applications/submit', {
+        // Makes a draft version until the applicant finishes submitting the 
+        // supplementary documents.
+        const response = await fetch('/api/applications/create-draft', {
           method: 'POST',
           headers: { 'Authorization': `Bearer ${authToken}` },
           body: formData
@@ -416,7 +419,12 @@
         const result = await response.json();
         
         if (result.success) {
-          displaySubmissionResults(result);
+          // Validate that we got a proper Firestore doc ID
+          if (!result.id || result.id === 'undefined') {
+            throw new Error('Server did not return a valid application ID. Please try again.');
+          }
+          // Redirect to application package page
+          window.location.href = `/application-package.html?id=${result.id}&appId=${result.applicationId}`;
         } else {
           throw new Error(result.error);
         }
@@ -425,16 +433,10 @@
         console.error('Error:', error);
         $('#loadingSection').hide();
         $('#analysisSection').show();
-        alert('Error submitting application: ' + error.message);
+        alert('Error saving draft: ' + error.message);
       }
     }
     
-    // Display final submission success with application ID
-    function displaySubmissionResults(result) {
-      $('#loadingSection').hide();
-      $('#resultsSection').show();
-      $('#applicationId').text(result.applicationId);
-    }
   </script>
 </body>
 </html>

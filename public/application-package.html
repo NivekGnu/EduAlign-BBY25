@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Application Package - WorkSafeBC</title>
+  
+  <link rel="stylesheet" href="https://ux-static.online.worksafebc.com/css/wsbc.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+  
+  <style>
+    body { background-color: #F1F0EF; padding: 20px 0; }
+    .main-container { max-width: 1140px; margin: 0 auto; background: white; padding: 40px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+    .logo { max-width: 200px; margin-bottom: 30px; }
+    .form-section { margin-bottom: 30px; padding-bottom: 30px; border-bottom: 1px solid #E4E2E0; }
+    .form-section:last-child { border-bottom: none; }
+    .loading-spinner { display: none; text-align: center; padding: 40px; }
+    .spinner { border: 4px solid #E4E2E0; border-top: 4px solid #ED8B00; border-radius: 50%; width: 50px; height: 50px; animation: spin 1s linear infinite; margin: 0 auto 20px; }
+    @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    
+    .file-upload-single { border: 2px dashed #C9C5C1; padding: 20px; text-align: center; border-radius: 4px; background: #FAFAFA; cursor: pointer; transition: all 0.3s; margin-top: 10px; }
+    .file-upload-single:hover { border-color: #ED8B00; background: #FFF9F0; }
+    .file-upload-single.has-file { border-color: #888D30; border-style: solid; background: #F5F6EC; }
+    
+    .file-selected { display: flex; justify-content: space-between; align-items: center; padding: 10px; background: #E0EBEF; border-radius: 4px; margin-top: 10px; }
+    .file-selected-remove { cursor: pointer; color: #D32F2F; font-weight: bold; }
+    
+    .info-box { background-color: #E0EBEF; border-left: 4px solid #6399AE; padding: 20px; margin: 15px 0; }
+    .info-box h4 { color: #003366; margin-top: 0; }
+    .info-box ul { margin-bottom: 0; padding-left: 20px; }
+    .info-box ul li { margin-bottom: 8px; line-height: 1.6; }
+    
+    .download-box { background-color: #F5F6EC; border-left: 4px solid #888D30; padding: 20px; margin: 15px 0; }
+    .download-box a { color: #003366; font-weight: bold; text-decoration: underline; }
+    .download-box a:hover { color: #ED8B00; }
+    
+    .success-message { background-color: #E7E8D6; border-left: 4px solid #888D30; padding: 20px; margin: 20px 0; }
+    .upload-label { font-weight: bold; color: #003366; margin-bottom: 5px; display: block; }
+    .upload-description { color: #6B6B6B; font-size: 14px; margin-bottom: 5px; }
+    
+    #resultsSection { display: none; }
+    .btn-group { display: flex; gap: 10px; justify-content: center; }
+  </style>
+  
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+  <script src="/firebase-config.js"></script>
+</head>
+<body>
+
+  <div class="main-container">
+    <img src="https://ux-static.online.worksafebc.com/css/assets/img/worksafebc-logo.jpg" alt="WorkSafeBC" class="logo">
+    
+    <h1>Complete Your Application Package</h1>
+    <p class="mb-2">Application <strong id="applicationDisplayId"></strong></p>
+    <p class="text-muted mb-4">Your curriculum has been analyzed. Please complete the remaining documents to finalize your application.</p>
+    
+    <!-- Step indicator -->
+    <div style="display: flex; align-items: center; margin-bottom: 30px; padding: 15px; background: #F8F8F8; border-radius: 4px;">
+      <div style="display: flex; align-items: center;">
+        <span style="background: #888D30; color: white; border-radius: 50%; width: 30px; height: 30px; display: inline-flex; align-items: center; justify-content: center; font-weight: bold; margin-right: 8px;"><i class="fa fa-check" style="font-size: 14px;"></i></span>
+        <span style="color: #888D30;">Curriculum Analysis</span>
+      </div>
+      <span style="margin: 0 15px; color: #C9C5C1;">&#9654;</span>
+      <div style="display: flex; align-items: center;">
+        <span style="background: #6399AE; color: white; border-radius: 50%; width: 30px; height: 30px; display: inline-flex; align-items: center; justify-content: center; font-weight: bold; margin-right: 8px;">2</span>
+        <strong style="color: #003366;">Application Package</strong>
+      </div>
+    </div>
+    
+    <!-- Main form section -->
+    <div id="packageForm">
+      
+      <!-- Section 1: Provider Application Form -->
+      <div class="form-section">
+        <h2 class="subtitle-orange">1. Provider Application Form</h2>
+        <div class="download-box">
+          <h4><i class="fa fa-download"></i> Download the Application Form</h4>
+          <p>Download the official WorkSafeBC Provider Application Form, fill it out, and upload the completed form below.</p>
+          <a href="https://www.worksafebc.com/resources/health-safety/forms/asbestos-abatement-training-provider-application-form?lang=en&direct=" target="_blank">
+            <i class="fa fa-external-link"></i> Asbestos abatement training: Provider application form | WorkSafeBC
+          </a>
+        </div>
+        
+        <label class="upload-label" for="providerFormFile">Upload Completed Provider Application Form <span class="text-danger">*</span></label>
+        <p class="upload-description">PDF format, maximum 10MB</p>
+        <label for="providerFormFile" style="cursor: pointer; display: block; margin: 0;">
+          <div class="file-upload-single" id="dropZone1">
+            <i class="fa fa-upload fa-2x mb-2" style="color: #6399AE;"></i>
+            <p style="margin: 0;"><strong>Click to select file</strong> or drag and drop</p>
+          </div>
+        </label>
+        <input type="file" id="providerFormFile" accept=".pdf" style="display: none;">
+        <div id="providerFormSelected" style="display: none;"></div>
+      </div>
+      
+      <!-- Section 2: Course Outline / Training Agenda -->
+      <div class="form-section">
+        <h2 class="subtitle-orange">2. Course Outline and/or Training Agenda</h2>
+        <div class="info-box">
+          <h4><i class="fa fa-info-circle"></i> What to Include</h4>
+          <p>Your application package must include a course outline and/or training agenda that specifies:</p>
+          <ul>
+            <li>Course title, course length, prerequisites (if applicable), and course fee</li>
+            <li>How the course will be delivered (online, in person, or blended)</li>
+            <li>A description of the topics covered and activities done during the course or training</li>
+          </ul>
+        </div>
+        
+        <label class="upload-label" for="courseOutlineFile">Upload Course Outline / Training Agenda <span class="text-danger">*</span></label>
+        <p class="upload-description">PDF format, maximum 10MB</p>
+        <label for="courseOutlineFile" style="cursor: pointer; display: block; margin: 0;">
+          <div class="file-upload-single" id="dropZone2">
+            <i class="fa fa-upload fa-2x mb-2" style="color: #6399AE;"></i>
+            <p style="margin: 0;"><strong>Click to select file</strong> or drag and drop</p>
+          </div>
+        </label>
+        <input type="file" id="courseOutlineFile" accept=".pdf" style="display: none;">
+        <div id="courseOutlineSelected" style="display: none;"></div>
+      </div>
+      
+      <!-- Section 3: Administration Documents -->
+      <div class="form-section">
+        <h2 class="subtitle-orange">3. Administration Documents</h2>
+        <div class="info-box">
+          <h4><i class="fa fa-info-circle"></i> What to Include</h4>
+          <p>Your administration documents must provide information about:</p>
+          <ul>
+            <li><strong>Instructor qualifications:</strong> The qualifications and responsibilities of the person or people conducting the training (and conducting the practical skills test for Level 2)</li>
+            <li><strong>Training records maintenance:</strong> Your maintenance plan for training records (i.e., how you will maintain participant training records and ensure their accuracy)</li>
+            <li><strong>Quality monitoring and evaluation:</strong> Your monitoring and evaluation plan for maintaining the quality of training and testing (typically in the form of policy, procedures, and related reports, including a mechanism to collect participant feedback)</li>
+            <li><strong>Complaints and appeals:</strong> Your policy and procedures related to complaints and appeals</li>
+            <li><strong>Registration, withdrawal, and refunds:</strong> Your policy and procedures for registration, withdrawal, and refund processes</li>
+          </ul>
+        </div>
+        
+        <label class="upload-label" for="adminDocsFile">Upload Administration Documents <span class="text-danger">*</span></label>
+        <p class="upload-description">PDF format, maximum 10MB</p>
+        <label for="adminDocsFile" style="cursor: pointer; display: block; margin: 0;">
+          <div class="file-upload-single" id="dropZone3">
+            <i class="fa fa-upload fa-2x mb-2" style="color: #6399AE;"></i>
+            <p style="margin: 0;"><strong>Click to select file</strong> or drag and drop</p>
+          </div>
+        </label>
+        <input type="file" id="adminDocsFile" accept=".pdf" style="display: none;">
+        <div id="adminDocsSelected" style="display: none;"></div>
+      </div>
+      
+      <!-- Submit button -->
+      <div class="text-center btn-group">
+        <a href="/application.html" class="btn btn-outline-blue btn-lg">
+          <i class="fa fa-arrow-left"></i> Back
+        </a>
+        <button type="button" id="submitButton" class="btn btn-orange btn-lg">
+          <i class="fa fa-paper-plane"></i> Submit Application
+        </button>
+      </div>
+    </div>
+    
+    <!-- Loading spinner -->
+    <div id="loadingSection" class="loading-spinner">
+      <div class="spinner"></div>
+      <h3 id="loadingText">Submitting your application...</h3>
+      <p>This may take a moment. Please don't close this window.</p>
+    </div>
+    
+    <!-- Success section -->
+    <div id="resultsSection">
+      <div class="success-message">
+        <h3><i class="fa fa-check-circle"></i> Application Submitted Successfully</h3>
+        <p>Your application ID: <strong id="finalApplicationId"></strong></p>
+        <p>Your complete application package has been submitted for review.</p>
+        <p><a href="/applicant-index.html" class="btn btn-blue mt-3">View My Applications</a></p>
+      </div>
+    </div>
+  </div>
+  
+  <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+  <script>
+    let authToken = null;
+    let applicationId = null;       // Firestore doc ID
+    let applicationDisplayId = null; // Human-readable ID (e.g., APP20260315ABCD)
+    
+    // File references for 3 upload slots
+    let providerFormFile = null;
+    let courseOutlineFile = null;
+    let adminDocsFile = null;
+    
+    $(document).ready(async function() {
+      // Get application ID from URL
+      const urlParams = new URLSearchParams(window.location.search);
+      applicationId = urlParams.get('id');
+      applicationDisplayId = urlParams.get('appId');
+      
+      if (!applicationId || applicationId === 'undefined' || !applicationDisplayId) {
+        alert('Invalid application. Please start from the beginning.');
+        window.location.href = '/application.html';
+        return;
+      }
+      
+      $('#applicationDisplayId').text(applicationDisplayId);
+      
+      // Check Firebase authentication
+      const user = await new Promise(resolve => {
+        const unsubscribe = firebase.auth().onAuthStateChanged(u => {
+          unsubscribe();
+          resolve(u);
+        });
+      });
+
+      if (!user) {
+        window.location.replace('/');
+        return;
+      }
+
+      try {
+        const tokenResult = await user.getIdTokenResult(true);
+        const role = tokenResult.claims.role || 'applicant';
+
+        if (role === 'reviewer') {
+          window.location.replace('/');
+          return;
+        }
+
+        authToken = await user.getIdToken();
+        setupFileUploads();
+        $('#submitButton').on('click', submitPackage);
+
+      } catch (err) {
+        console.error(err);
+        window.location.replace('/');
+      }
+    });
+    
+    // Setup all 3 file upload areas
+    function setupFileUploads() {
+      setupSingleUpload('providerFormFile', 'dropZone1', 'providerFormSelected', 'providerForm');
+      setupSingleUpload('courseOutlineFile', 'dropZone2', 'courseOutlineSelected', 'courseOutline');
+      setupSingleUpload('adminDocsFile', 'dropZone3', 'adminDocsSelected', 'adminDocs');
+    }
+    
+    function setupSingleUpload(inputId, dropZoneId, selectedId, fileKey) {
+      const fileInput = $(`#${inputId}`);
+      const dropZone = $(`#${dropZoneId}`);
+      
+      fileInput.on('change', function(e) {
+        handleSingleFileSelect(e.target.files[0], fileKey, dropZoneId, selectedId);
+      });
+      
+      dropZone.on('dragover', function(e) {
+        e.preventDefault();
+        $(this).css('border-color', '#ED8B00');
+      });
+      
+      dropZone.on('dragleave', function(e) {
+        e.preventDefault();
+        $(this).css('border-color', '#C9C5C1');
+      });
+      
+      dropZone.on('drop', function(e) {
+        e.preventDefault();
+        $(this).css('border-color', '#C9C5C1');
+        const files = e.originalEvent.dataTransfer.files;
+        if (files.length > 0) {
+          // Set files to the input as well
+          const input = document.getElementById(inputId);
+          // We can't set files on input, so handle directly
+          handleSingleFileSelect(files[0], fileKey, dropZoneId, selectedId);
+        }
+      });
+    }
+    
+    function handleSingleFileSelect(file, fileKey, dropZoneId, selectedId) {
+      if (!file) return;
+      
+      if (file.type !== 'application/pdf') {
+        alert('Only PDF files are allowed');
+        return;
+      }
+      if (file.size > 10 * 1024 * 1024) {
+        alert('File exceeds 10MB limit');
+        return;
+      }
+      
+      // Store file reference
+      if (fileKey === 'providerForm') providerFormFile = file;
+      else if (fileKey === 'courseOutline') courseOutlineFile = file;
+      else if (fileKey === 'adminDocs') adminDocsFile = file;
+      
+      // Update UI
+      const dropZone = $(`#${dropZoneId}`);
+      dropZone.addClass('has-file');
+      dropZone.html(`<i class="fa fa-check-circle fa-2x mb-2" style="color: #888D30;"></i><p style="margin: 0; color: #888D30;"><strong>File selected</strong></p>`);
+      
+      const sizeInMB = (file.size / 1024 / 1024).toFixed(2);
+      const selectedDiv = $(`#${selectedId}`);
+      selectedDiv.html(`
+        <div class="file-selected">
+          <span><i class="fa fa-file-pdf-o"></i> ${file.name} (${sizeInMB} MB)</span>
+          <span class="file-selected-remove" data-key="${fileKey}" data-dropzone="${dropZoneId}" data-selected="${selectedId}">
+            <i class="fa fa-times"></i> Remove
+          </span>
+        </div>
+      `);
+      selectedDiv.show();
+      
+      // Add remove handler
+      selectedDiv.find('.file-selected-remove').on('click', function() {
+        removeSingleFile($(this).data('key'), $(this).data('dropzone'), $(this).data('selected'));
+      });
+    }
+    
+    function removeSingleFile(fileKey, dropZoneId, selectedId) {
+      // Clear file reference
+      if (fileKey === 'providerForm') providerFormFile = null;
+      else if (fileKey === 'courseOutline') courseOutlineFile = null;
+      else if (fileKey === 'adminDocs') adminDocsFile = null;
+      
+      // Reset upload area UI
+      const dropZone = $(`#${dropZoneId}`);
+      dropZone.removeClass('has-file');
+      dropZone.html(`<i class="fa fa-upload fa-2x mb-2" style="color: #6399AE;"></i><p style="margin: 0;"><strong>Click to select file</strong> or drag and drop</p>`);
+      
+      $(`#${selectedId}`).hide().empty();
+    }
+    
+    async function submitPackage() {
+      // Validate all 3 files are selected
+      if (!providerFormFile) {
+        alert('Please upload the Provider Application Form');
+        return;
+      }
+      if (!courseOutlineFile) {
+        alert('Please upload the Course Outline / Training Agenda');
+        return;
+      }
+      if (!adminDocsFile) {
+        alert('Please upload the Administration Documents');
+        return;
+      }
+      
+      $('#packageForm').hide();
+      $('#loadingSection').show();
+      
+      try {
+        const formData = new FormData();
+        formData.append('packageFiles', providerFormFile);
+        formData.append('packageFiles', courseOutlineFile);
+        formData.append('packageFiles', adminDocsFile);
+        
+        // Send labels so backend knows which file is which
+        formData.append('packageLabels', JSON.stringify([
+          'Provider Application Form',
+          'Course Outline / Training Agenda',
+          'Administration Documents'
+        ]));
+        
+        const response = await fetch(`/api/applications/${applicationId}/complete-package`, {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${authToken}` },
+          body: formData
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+          $('#loadingSection').hide();
+          $('#resultsSection').show();
+          $('#finalApplicationId').text(result.applicationId);
+        } else {
+          throw new Error(result.error);
+        }
+        
+      } catch (error) {
+        console.error('Error:', error);
+        $('#loadingSection').hide();
+        $('#packageForm').show();
+        alert('Error submitting application: ' + error.message);
+      }
+    }
+  </script>
+</body>
+</html>

@@ -106,9 +106,9 @@ exports.getApplicationDetails = async (req, res) => {
         };
 
         // Add signed URLs for all PDFs
-        if (version.pdfFiles && version.pdfFiles.length > 0) {
-          versionData.pdfFiles = await Promise.all(
-            version.pdfFiles.map(async (pdf) => ({
+        if (version.curriculumFiles && version.curriculumFiles.length > 0) {
+          versionData.curriculumFiles = await Promise.all(
+            version.curriculumFiles.map(async (pdf) => ({
               filename: pdf.filename,
               uploadedAt: pdf.uploadedAt,
               fileIndex: pdf.fileIndex || 1,
@@ -118,9 +118,9 @@ exports.getApplicationDetails = async (req, res) => {
         }
         
         // Signed URLs for package files (application form, course outline, admin docs)
-        if (version.packageFiles && version.packageFiles.length > 0) {
-          versionData.packageFiles = await Promise.all(
-            version.packageFiles.map(async (pkg) => ({
+        if (version.applicationPackageFiles && version.applicationPackageFiles.length > 0) {
+          versionData.applicationPackageFiles = await Promise.all(
+            version.applicationPackageFiles.map(async (pkg) => ({
               filename: pkg.filename,
               label: pkg.label || 'Package Document',
               uploadedAt: pkg.uploadedAt,

@@ -282,9 +282,9 @@
               
               // Curriculum Documents section
               html += '<h6>Curriculum Documents</h6>';
-              if (v.pdfFiles && v.pdfFiles.length > 0) {
+              if (v.curriculumFiles && v.curriculumFiles.length > 0) {
                 html += '<ul>';
-                v.pdfFiles.forEach(pdf => {
+                v.curriculumFiles.forEach(pdf => {
                   html += `<li><a href="${pdf.signedUrl}" target="_blank"><i class="fa fa-file-pdf-o"></i> ${pdf.filename}</a></li>`;
                 });
                 html += '</ul>';
@@ -293,9 +293,9 @@
               }
               
               // Application Package Documents section
-              if (v.packageFiles && v.packageFiles.length > 0) {
+              if (v.applicationPackageFiles && v.applicationPackageFiles.length > 0) {
                 html += '<h6>Application Package Documents</h6><ul>';
-                v.packageFiles.forEach(pkg => {
+                v.applicationPackageFiles.forEach(pkg => {
                   html += `<li><a href="${pkg.signedUrl}" target="_blank"><i class="fa fa-file-pdf-o"></i> ${pkg.filename}</a> <span class="text-muted">(${pkg.label})</span></li>`;
                 });
                 html += '</ul>';

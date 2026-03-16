@@ -5,318 +5,15 @@ const { analyzeCurriculum, getLevel1Competencies } = require('../utils/groqAnaly
 const { fillAndUploadLevel1Excel } = require('../utils/excelFiller');
 const fs = require('fs');
 
-/**
- * Create a draft application (Step 1: saves curriculum files + analysis, status = Draft)
- * Called from application.html after "Continue to Application Package"
- */
-exports.createDraft = async (req, res) => {
-  const tempFilePaths = [];
-  
-  try {
-    const { providerName, organizationName } = req.body;
-    const email = req.user ? req.user.email : req.body.email;
-    const pdfFiles = req.files;
-    
-    if (!providerName || !organizationName || !email) {
-      return res.status(400).json({
-        success: false,
-        error: 'Missing required fields: providerName, organizationName, email'
-      });
-    }
-    
-    if (!pdfFiles || pdfFiles.length === 0) {
-      return res.status(400).json({
-        success: false,
-        error: 'No PDF files uploaded'
-      });
-    }
-    
-    console.log('');
-    console.log('===== CREATING DRAFT APPLICATION =====');
-    console.log(`Provider: ${providerName}`);
-    console.log(`Organization: ${organizationName}`);
-    console.log(`Email: ${email}`);
-    console.log(`Curriculum Files: ${pdfFiles.length} PDFs`);
-    pdfFiles.forEach((file, idx) => {
-      console.log(`  ${idx + 1}. ${file.originalname}`);
-    });
-    console.log('');
-    
-    // Read all PDF files
-    const pdfBuffers = [];
-    for (const file of pdfFiles) {
-      const buffer = fs.readFileSync(file.path);
-      
-      if (!isValidPDF(buffer)) {
-        throw new Error(`Invalid PDF file: ${file.originalname}`);
-      }
-      
-      pdfBuffers.push(buffer);
-      tempFilePaths.push(file.path);
-      console.log(`  ${file.originalname}: ${getFileSizeMB(buffer)} MB`);
-    }
-
-    let userId = null;
-    if (req.user) {
-      userId = req.user.uid;
-    }
-
-    // Create application record with Draft status
-    const application = await createApplication({
-      userId,
-      providerName,
-      organizationName,
-      email,
-      status: 'Draft',
-      submittedDate: new Date(),
-      pdfFiles: [],
-      excelFile: null,
-      mappings: [],
-      missingCriteria: []
-    });
-    
-    // Capture Firestore doc ID immediately as primitive string
-    const firestoreDocId = application.id || application._id;
-    const appDisplayId = application.applicationId;
-    
-    console.log(`Draft Application ID: ${appDisplayId}`);
-    console.log(`Firestore Doc ID: ${firestoreDocId}`);
-    
-    if (!firestoreDocId) {
-      throw new Error('Failed to get Firestore document ID after creation');
-    }
-    
-    // Upload curriculum files to Firebase Storage
-    const filenames = pdfFiles.map(f => f.originalname);
-    const storageResults = await uploadMultipleToStorage(pdfBuffers, filenames, firestoreDocId);
-    
-    // Extract text from all PDFs
-    const pdfData = await extractTextFromMultiplePDFs(pdfBuffers, filenames);
-    const competencies = getLevel1Competencies();
-    
-    // Use cached analysisResults or analyze with Groq
-    let analysis;
-    if (req.body.analysisResults) {
-      console.log('Using pre-analyzed results from frontend');
-      analysis = JSON.parse(req.body.analysisResults);
-    } else {
-      console.log('No pre-analyzed results found, analyzing now...');
-      analysis = await analyzeCurriculum(pdfData.combinedText, competencies);
-    }
-    
-    // Generate and upload filled Level 1 Excel
-    let filledExcelResult = null;
-    try {
-      filledExcelResult = await fillAndUploadLevel1Excel(
-        analysis,
-        competencies,
-        firestoreDocId
-      );
-    } catch (excelErr) {
-      console.error('Warning: Failed to generate filled Excel:', excelErr);
-    }
-
-    // Build pdfFiles array from storage results
-    const pdfFilesData = storageResults.map((result, idx) => ({
-      storagePath: result.storagePath,
-      publicUrl: result.publicUrl,
-      filename: result.filename,
-      uploadedAt: new Date(),
-      fileIndex: idx + 1
-    }));
-
-    // Update application with version 1 data (curriculum only, package files added later)
-    const version1 = {
-      version: 1,
-      analyzedAt: new Date(),
-      pdfFiles: pdfFilesData,
-      packageFiles: [], // Will be filled in completePackage
-      excelFile: filledExcelResult ? {
-        storagePath: filledExcelResult.storagePath,
-        publicUrl: filledExcelResult.publicUrl,
-        filename: filledExcelResult.filename,
-        generatedAt: new Date()
-      } : null,
-      missingCriteria: analysis.missingCriteria || [],
-      mappings: analysis.mappings || []
-    };
-
-    const updateData = {
-      versions: [version1],
-      currentVersion: 1
-    };
-
-    await updateApplication(firestoreDocId, updateData);
-    
-    console.log('');
-    console.log('Draft created successfully');
-    console.log('========================================');
-    console.log('');
-    
-    // Clean up temp files
-    tempFilePaths.forEach(path => {
-      if (fs.existsSync(path)) fs.unlinkSync(path);
-    });
-    
-    res.json({
-      success: true,
-      id: firestoreDocId,
-      applicationId: appDisplayId
-    });
-    
-  } catch (error) {
-    console.error('Error creating draft:', error);
-    
-    tempFilePaths.forEach(path => {
-      if (fs.existsSync(path)) fs.unlinkSync(path);
-    });
-    
-    res.status(500).json({
-      success: false,
-      error: error.message || 'Failed to create draft'
-    });
-  }
-};
-
-/**
- * Complete application package (Step 2: uploads package files, status Draft → Unreviewed)
- * Called from application-package.html
- */
-exports.completePackage = async (req, res) => {
-  const tempFilePaths = [];
-  
-  try {
-    const { id } = req.params;
-    const userId = req.user.uid;
-    const packagePdfFiles = req.files;
-    
-    if (!packagePdfFiles || packagePdfFiles.length === 0) {
-      return res.status(400).json({
-        success: false,
-        error: 'No package files uploaded'
-      });
-    }
-    
-    // Find existing draft application
-    const application = await getApplicationById(id);
-    
-    if (!application) {
-      return res.status(404).json({
-        success: false,
-        error: 'Application not found'
-      });
-    }
-    
-    // Verify ownership
-    if (application.userId !== userId) {
-      return res.status(403).json({
-        success: false,
-        error: 'Access denied'
-      });
-    }
-    
-    // Verify it's a draft
-    if (application.status !== 'Draft') {
-      return res.status(400).json({
-        success: false,
-        error: 'Application is not in Draft status'
-      });
-    }
-    
-    console.log('');
-    console.log('===== COMPLETING APPLICATION PACKAGE =====');
-    console.log(`Application ID: ${application.applicationId}`);
-    console.log(`Package Files: ${packagePdfFiles.length} PDFs`);
-    
-    // Parse package labels
-    let packageLabels = [];
-    try {
-      packageLabels = JSON.parse(req.body.packageLabels || '[]');
-    } catch (e) {
-      packageLabels = [];
-    }
-    
-    // Read and validate package files
-    const packageBuffers = [];
-    const packageFilenames = [];
-    
-    for (let i = 0; i < packagePdfFiles.length; i++) {
-      const file = packagePdfFiles[i];
-      const buffer = fs.readFileSync(file.path);
-      
-      if (!isValidPDF(buffer)) {
-        throw new Error(`Invalid PDF file: ${file.originalname}`);
-      }
-      
-      packageBuffers.push(buffer);
-      packageFilenames.push(file.originalname);
-      tempFilePaths.push(file.path);
-      
-      const label = packageLabels[i] || `Package Document ${i + 1}`;
-      console.log(`  ${i + 1}. [${label}] ${file.originalname}: ${getFileSizeMB(buffer)} MB`);
-    }
-    
-    // Upload package files to Firebase Storage
-    const storageResults = await uploadMultipleToStorage(packageBuffers, packageFilenames, application.id);
-    
-    // Build packageFiles array
-    const packageFilesData = storageResults.map((result, idx) => ({
-      storagePath: result.storagePath,
-      publicUrl: result.publicUrl,
-      filename: result.filename,
-      label: packageLabels[idx] || `Package Document ${idx + 1}`,
-      uploadedAt: new Date(),
-      fileIndex: idx + 1
-    }));
-    
-    // Update version 1 with package files and change status to Unreviewed
-    const versions = application.versions || [];
-    if (versions.length > 0) {
-      versions[0].packageFiles = packageFilesData;
-    }
-    
-    await updateApplication(application.id, {
-      versions: versions,
-      status: 'Unreviewed'
-    });
-    
-    console.log('');
-    console.log('Application package completed successfully');
-    console.log('========================================');
-    console.log('');
-    
-    // Clean up temp files
-    tempFilePaths.forEach(path => {
-      if (fs.existsSync(path)) fs.unlinkSync(path);
-    });
-    
-    res.json({
-      success: true,
-      applicationId: application.applicationId
-    });
-    
-  } catch (error) {
-    console.error('Error completing package:', error);
-    
-    tempFilePaths.forEach(path => {
-      if (fs.existsSync(path)) fs.unlinkSync(path);
-    });
-    
-    res.status(500).json({
-      success: false,
-      error: error.message || 'Failed to complete package'
-    });
-  }
-};
-
 // Submit a new application (legacy - kept for compatibility, now creates full application in one step)
 exports.submitApplication = async (req, res) => {
-  const tempFilePaths = [];
+  const tempFilePaths = []; 
   
   try {
     const { providerName, organizationName } = req.body;
     const email = req.user ? req.user.email : req.body.email;
-    const pdfFiles = req.files; 
+    const curriculumFiles = req.files['pdfs'] || [];
+    const applicationPackageFiles = req.files['applicationPackageFiles'] || [];
     
     if (!providerName || !organizationName || !email) {
       return res.status(400).json({
@@ -325,10 +22,18 @@ exports.submitApplication = async (req, res) => {
       });
     }
     
-    if (!pdfFiles || pdfFiles.length === 0) {
+    if (!curriculumFiles || curriculumFiles.length === 0) {
       return res.status(400).json({
         success: false,
         error: 'No PDF files uploaded'
+      });
+    }
+
+    // Check for package files
+    if (!applicationPackageFiles || applicationPackageFiles.length !== 3) {
+      return res.status(400).json({
+        success: false,
+        error: 'Exactly 3 package files required (Provider Form, Course Outline, Admin Doc)'
       });
     }
     
@@ -337,21 +42,35 @@ exports.submitApplication = async (req, res) => {
     console.log(`Provider: ${providerName}`);
     console.log(`Organization: ${organizationName}`);
     console.log(`Email: ${email}`);
-    console.log(`Files: ${pdfFiles.length} PDFs`);
-    pdfFiles.forEach((file, idx) => {
+    console.log(`Files: ${curriculumFiles.length} PDFs`);
+    curriculumFiles.forEach((file, idx) => {
       console.log(`  ${idx + 1}. ${file.originalname}`);
     });
     console.log('');
     
-    const pdfBuffers = [];
-    for (const file of pdfFiles) {
+    const curriculumBuffers = [];
+    for (const file of curriculumFiles) {
       const buffer = fs.readFileSync(file.path);
       
       if (!isValidPDF(buffer)) {
         throw new Error(`Invalid PDF file: ${file.originalname}`);
       }
       
-      pdfBuffers.push(buffer);
+      curriculumBuffers.push(buffer);
+      tempFilePaths.push(file.path);
+      console.log(`  ${file.originalname}: ${getFileSizeMB(buffer)} MB`);
+    }
+
+    // Read all package files
+    const applicationPackageBuffers = [];
+    for (const file of applicationPackageFiles) {
+      const buffer = fs.readFileSync(file.path);
+      
+      if (!isValidPDF(buffer)) {
+        throw new Error(`Invalid PDF file: ${file.originalname}`);
+      }
+      
+      applicationPackageBuffers.push(buffer);
       tempFilePaths.push(file.path);
       console.log(`  ${file.originalname}: ${getFileSizeMB(buffer)} MB`);
     }
@@ -368,7 +87,7 @@ exports.submitApplication = async (req, res) => {
       email,
       status: 'Unreviewed',
       submittedDate: new Date(),
-      pdfFiles: [],
+      curriculumFiles: [],
       excelFile: null,
       mappings: [],
       missingCriteria: []
@@ -376,10 +95,12 @@ exports.submitApplication = async (req, res) => {
     
     console.log(`Application ID: ${application.applicationId}`);
     
-    const filenames = pdfFiles.map(f => f.originalname);
-    const storageResults = await uploadMultipleToStorage(pdfBuffers, filenames, application.id);
+    const filenames = curriculumFiles.map(f => f.originalname);
+    const storageResults = await uploadMultipleToStorage(curriculumBuffers, filenames, application.id);
+    const applicationPackageFilenames = applicationPackageFiles.map(f => f.originalname);
+    const applicationPackageStorageResults = await uploadMultipleToStorage(applicationPackageBuffers, applicationPackageFilenames, application.id);
     
-    const pdfData = await extractTextFromMultiplePDFs(pdfBuffers, filenames);
+    const pdfData = await extractTextFromMultiplePDFs(curriculumBuffers, filenames);
     const competencies = getLevel1Competencies();
     
     let analysis;
@@ -402,7 +123,7 @@ exports.submitApplication = async (req, res) => {
       console.error('Warning: Failed to generate filled Excel:', excelErr);
     }
 
-    const pdfFilesData = storageResults.map((result, idx) => ({
+    const curriculumFilesData = storageResults.map((result, idx) => ({
       storagePath: result.storagePath,
       publicUrl: result.publicUrl,
       filename: result.filename,
@@ -413,8 +134,18 @@ exports.submitApplication = async (req, res) => {
     const version1 = {
       version: 1,
       analyzedAt: new Date(),
-      pdfFiles: pdfFilesData,
-      packageFiles: [],
+      curriculumFiles: curriculumFilesData,
+      applicationPackageFiles: applicationPackageStorageResults.map((result, idx) => {
+        const labels = ['Provider Application Form', 'Course Outline', 'Administration Document'];
+        return {
+          storagePath: result.storagePath,
+          publicUrl: result.publicUrl,
+          filename: result.filename,
+          label: labels[idx] || 'Package Document',
+          uploadedAt: new Date(),
+          fileIndex: idx + 1
+        };
+      }),
       excelFile: filledExcelResult ? {
         storagePath: filledExcelResult.storagePath,
         publicUrl: filledExcelResult.publicUrl,
@@ -454,7 +185,7 @@ exports.submitApplication = async (req, res) => {
         submittedDate: updatedApp.submittedDate,
         missingCriteria: updatedApp.missingCriteria,
         mappingsCount: updatedApp.mappings ? updatedApp.mappings.length : 0,
-        filesCount: pdfFilesData.length 
+        filesCount: curriculumFilesData.length 
       }
     });
     
@@ -483,7 +214,7 @@ exports.analyzeCurriculum = async (req, res) => {
   
   try {
     const { providerName, organizationName } = req.body;
-    const pdfFiles = req.files;
+    const curriculumFiles = req.files;
     
     if (!providerName || !organizationName) {
       return res.status(400).json({
@@ -492,7 +223,7 @@ exports.analyzeCurriculum = async (req, res) => {
       });
     }
     
-    if (!pdfFiles || pdfFiles.length === 0) {
+    if (!curriculumFiles || curriculumFiles.length === 0) {
       return res.status(400).json({
         success: false,
         error: 'No PDF files uploaded'
@@ -503,29 +234,29 @@ exports.analyzeCurriculum = async (req, res) => {
     console.log('===== ANALYZING CURRICULUM (PREVIEW) =====');
     console.log(`Provider: ${providerName}`);
     console.log(`Organization: ${organizationName}`);
-    console.log(`Files: ${pdfFiles.length} PDFs`);
-    pdfFiles.forEach((file, idx) => {
+    console.log(`Files: ${curriculumFiles.length} PDFs`);
+    curriculumFiles.forEach((file, idx) => {
       console.log(`  ${idx + 1}. ${file.originalname}`);
     });
     console.log('');
     
-    const pdfBuffers = [];
+    const curriculumBuffers = [];
     const filenames = [];
     
-    for (const file of pdfFiles) {
+    for (const file of curriculumFiles) {
       const buffer = fs.readFileSync(file.path);
       
       if (!isValidPDF(buffer)) {
         throw new Error(`Invalid PDF file: ${file.originalname}`);
       }
       
-      pdfBuffers.push(buffer);
+      curriculumBuffers.push(buffer);
       filenames.push(file.originalname);
       tempFilePaths.push(file.path);
       console.log(`  ${file.originalname}: ${getFileSizeMB(buffer)} MB`);
     }
     
-    const pdfData = await extractTextFromMultiplePDFs(pdfBuffers, filenames);
+    const pdfData = await extractTextFromMultiplePDFs(curriculumBuffers, filenames);
     
     const competencies = getLevel1Competencies();
     const analysis = await analyzeCurriculum(pdfData.combinedText, competencies);
@@ -546,7 +277,7 @@ exports.analyzeCurriculum = async (req, res) => {
         mappings: analysis.mappings || [],
         mappingsCount: analysis.mappings ? analysis.mappings.length : 0,
         coveredCount: competencies.length - (analysis.missingCriteria ? analysis.missingCriteria.length : 0),
-        filesAnalyzed: pdfFiles.length
+        filesAnalyzed: curriculumFiles.length
       }
     });
     
@@ -625,9 +356,9 @@ exports.getMyApplicationDetails = async (req, res) => {
         };
 
         // Signed URLs for curriculum PDF files
-        if (version.pdfFiles && version.pdfFiles.length > 0) {
-          versionData.pdfFiles = await Promise.all(
-            version.pdfFiles.map(async (pdf) => ({
+        if (version.curriculumFiles && version.curriculumFiles.length > 0) {
+          versionData.curriculumFiles = await Promise.all(
+            version.curriculumFiles.map(async (pdf) => ({
               filename: pdf.filename,
               uploadedAt: pdf.uploadedAt,
               fileIndex: pdf.fileIndex || 1,
@@ -637,9 +368,9 @@ exports.getMyApplicationDetails = async (req, res) => {
         }
 
         // Signed URLs for package files
-        if (version.packageFiles && version.packageFiles.length > 0) {
-          versionData.packageFiles = await Promise.all(
-            version.packageFiles.map(async (pkg) => ({
+        if (version.applicationPackageFiles && version.applicationPackageFiles.length > 0) {
+          versionData.applicationPackageFiles = await Promise.all(
+            version.applicationPackageFiles.map(async (pkg) => ({
               filename: pkg.filename,
               label: pkg.label || 'Package Document',
               uploadedAt: pkg.uploadedAt,
@@ -686,7 +417,7 @@ exports.getMyApplicationDetails = async (req, res) => {
     });
   }
 };
-
+ 
 /**
  * Add a new revision to an existing application
  */
@@ -696,12 +427,21 @@ exports.reviseApplication = async (req, res) => {
   try {
     const { id } = req.params;
     const userId = req.user.uid;
-    const pdfFiles = req.files;
+    const curriculumFiles = req.files['pdfs'] || [];
+    const applicationPackageFiles = req.files['applicationPackageFiles'] || [];
     
-    if (!pdfFiles || pdfFiles.length === 0) {
+    if (!curriculumFiles || curriculumFiles.length === 0) {
       return res.status(400).json({
         success: false,
         error: 'No PDF files uploaded'
+      });
+    }
+
+    // Check for package files
+    if (!applicationPackageFiles || applicationPackageFiles.length !== 3) {
+      return res.status(400).json({
+        success: false,
+        error: 'Exactly 3 package files required (Provider Form, Course Outline, Admin Doc)'
       });
     }
     
@@ -725,31 +465,47 @@ exports.reviseApplication = async (req, res) => {
     console.log('===== APPLICATION REVISION =====');
     console.log(`Application ID: ${application.applicationId}`);
     console.log(`New Version: ${application.currentVersion + 1}`);
-    console.log(`Files: ${pdfFiles.length} PDFs`);
-    pdfFiles.forEach((file, idx) => {
+    console.log(`Files: ${curriculumFiles.length} PDFs`);
+    curriculumFiles.forEach((file, idx) => {
       console.log(`  ${idx + 1}. ${file.originalname}`);
     });
     console.log('');
     
-    const pdfBuffers = [];
+    const curriculumBuffers = [];
     const filenames = [];
     
-    for (const file of pdfFiles) {
+    for (const file of curriculumFiles) {
       const buffer = fs.readFileSync(file.path);
       
       if (!isValidPDF(buffer)) {
         throw new Error(`Invalid PDF file: ${file.originalname}`);
       }
       
-      pdfBuffers.push(buffer);
+      curriculumBuffers.push(buffer);
       filenames.push(file.originalname);
       tempFilePaths.push(file.path);
       console.log(`  ${file.originalname}: ${getFileSizeMB(buffer)} MB`);
     }
+
+    // Read all package files
+    const applicationPackageBuffers = [];
+    for (const file of applicationPackageFiles) {
+      const buffer = fs.readFileSync(file.path);
+      
+      if (!isValidPDF(buffer)) {
+        throw new Error(`Invalid PDF file: ${file.originalname}`);
+      }
+      
+      applicationPackageBuffers.push(buffer);
+      tempFilePaths.push(file.path);
+      console.log(`  ${file.originalname}: ${getFileSizeMB(buffer)} MB`);
+    }
     
-    const storageResults = await uploadMultipleToStorage(pdfBuffers, filenames, application.id);
+    const storageResults = await uploadMultipleToStorage(curriculumBuffers, filenames, application.id);
+    const applicationPackageFilenames = applicationPackageFiles.map(f => f.originalname);
+    const applicationPackageStorageResults = await uploadMultipleToStorage(applicationPackageBuffers, applicationPackageFilenames, application.id);
     
-    const pdfData = await extractTextFromMultiplePDFs(pdfBuffers, filenames);
+    const pdfData = await extractTextFromMultiplePDFs(curriculumBuffers, filenames);
     const competencies = getLevel1Competencies();
 
     let analysis;
@@ -772,22 +528,27 @@ exports.reviseApplication = async (req, res) => {
       console.error('Warning: Failed to generate filled Excel on revision:', excelErr);
     }
     
-    const pdfFilesData = storageResults.map((result, idx) => ({
+    const curriculumFilesData = storageResults.map((result, idx) => ({
       storagePath: result.storagePath,
       publicUrl: result.publicUrl,
       filename: result.filename,
       uploadedAt: new Date(),
       fileIndex: idx + 1
     }));
-
-    // Carry forward package files from the previous version
-    const previousVersions = application.versions || [];
-    const lastVersion = previousVersions[previousVersions.length - 1];
-    const previousPackageFiles = lastVersion ? (lastVersion.packageFiles || []) : [];
-    
+  
     const revisionData = {
-      pdfFiles: pdfFilesData,
-      packageFiles: previousPackageFiles, // Carry forward package files
+      curriculumFiles: curriculumFilesData,
+      applicationPackageFiles: applicationPackageStorageResults.map((result, idx) => {
+        const labels = ['Provider Application Form', 'Course Outline', 'Administration Document'];
+        return {
+          storagePath: result.storagePath,
+          publicUrl: result.publicUrl,
+          filename: result.filename,
+          label: labels[idx] || 'Package Document',
+          uploadedAt: new Date(),
+          fileIndex: idx + 1
+        };
+      }),
       excelFile: filledExcelResult ? {
         storagePath: filledExcelResult.storagePath,
         publicUrl: filledExcelResult.publicUrl,
@@ -815,7 +576,7 @@ exports.reviseApplication = async (req, res) => {
       applicationId: updatedApp.applicationId,
       version: updatedApp.currentVersion,
       missingCriteria: revisionData.missingCriteria,
-      filesCount: pdfFilesData.length
+      filesCount: curriculumFilesData.length
     });
     
   } catch (error) {

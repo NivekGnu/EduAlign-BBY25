@@ -43,6 +43,78 @@
     #analysisSection { display: none; }
     /* Button group styling for side-by-side buttons */
     .btn-group { display: flex; gap: 10px; justify-content: center; }
+    /* Progress indicator */
+    .progress-container {
+      max-width: 600px;
+      margin: 0 auto 40px;
+      padding: 20px 0;
+    }
+    .progress-steps {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      position: relative;
+    }
+    .progress-steps::before {
+      content: '';
+      position: absolute;
+      top: 20px;
+      left: 0;
+      right: 0;
+      height: 2px;
+      background: #E4E2E0;
+      z-index: 0;
+    }
+    .progress-step {
+      position: relative;
+      z-index: 1;
+      text-align: center;
+      flex: 1;
+    }
+    .step-circle {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      background: #E4E2E0;
+      color: #666;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto 10px;
+      font-weight: bold;
+      border: 3px solid white;
+    }
+    .progress-step.active .step-circle {
+      background: #ED8B00;
+      color: white;
+    }
+    .progress-step.completed .step-circle {
+      background: #888D30;
+      color: white;
+    }
+    .step-label {
+      font-size: 14px;
+      color: #666;
+    }
+    .progress-step.active .step-label {
+      color: #ED8B00;
+      font-weight: bold;
+    }
+    .progress-step.completed .step-label {
+      color: #888D30;
+    }
+    .alert-info {
+      background-color: #E0EBEF;
+      border-left: 4px solid #6399AE;
+      padding: 15px;
+      margin-bottom: 20px;
+    }
+    .info-box { background-color: #E0EBEF; border-left: 4px solid #6399AE; padding: 20px; margin: 15px 0; }
+    .info-box h4 { color: #003366; margin-top: 0; }
+    .info-box ul { margin-bottom: 0; padding-left: 20px; }
+    .info-box ul li { margin-bottom: 8px; line-height: 1.6; }
+    .upload-label { font-weight: bold; color: #003366; margin-bottom: 5px; display: block; }
+    .upload-description { color: #6B6B6B; font-size: 14px; margin-bottom: 5px; }
   </style> 
   
   <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
@@ -55,24 +127,30 @@
     <!-- WorkSafeBC logo -->
     <img src="https://ux-static.online.worksafebc.com/css/assets/img/worksafebc-logo.jpg" alt="WorkSafeBC" class="logo">
     
-    <h1>Asbestos Abatement Training Provider Application</h1>
-    <p class="mb-4">Submit your training curriculum for WorkSafeBC approval.</p>
-    
-    <!-- Step indicator -->
-    <div style="display: flex; align-items: center; margin-bottom: 30px; padding: 15px; background: #F8F8F8; border-radius: 4px;">
-      <div style="display: flex; align-items: center;">
-        <span style="background: #6399AE; color: white; border-radius: 50%; width: 30px; height: 30px; display: inline-flex; align-items: center; justify-content: center; font-weight: bold; margin-right: 8px;">1</span>
-        <strong style="color: #003366;">Curriculum Analysis</strong>
-      </div>
-      <span style="margin: 0 15px; color: #C9C5C1;">&#9654;</span>
-      <div style="display: flex; align-items: center;">
-        <span style="background: #C9C5C1; color: white; border-radius: 50%; width: 30px; height: 30px; display: inline-flex; align-items: center; justify-content: center; font-weight: bold; margin-right: 8px;">2</span>
-        <span style="color: #999;">Application Package</span>
+    <!-- Progress Indicator -->
+    <div class="progress-container">
+      <div class="progress-steps">
+        <div class="progress-step active" id="step1-indicator">
+          <div class="step-circle">1</div>
+          <div class="step-label">Upload & Analyze<br>Curriculum</div>
+        </div>
+        <div class="progress-step" id="step2-indicator">
+          <div class="step-circle">2</div>
+          <div class="step-label">Upload Application<br>Package</div>
+        </div>
+        <div class="progress-step" id="step3-indicator">
+          <div class="step-circle">3</div>
+          <div class="step-label">Submit</div>
+        </div>
       </div>
     </div>
+    
+    <h1>Asbestos Abatement Training Provider Application</h1>
 
     <!-- Application form -->
     <form id="applicationForm">
+      <h2>Step 1: Upload All Curriculum Material</h2>
+      <p class="mb-4">Please upload all course slides, quizzes, workbooks, and content.</p>
       <div class="form-section">
         <h2 class="subtitle-orange">Contact Information</h2>
         <!-- For applicant name -->
@@ -91,7 +169,7 @@
       <div class="form-section">
         <h2 class="subtitle-orange">Course Curriculum</h2>
         <p class="text-muted">Upload your training curriculum documents for AI-powered competency analysis.</p>
-        <label for="pdfFiles" style="cursor: pointer; display: block;">
+        <label for="curriculumFiles" style="cursor: pointer; display: block;">
           <!-- Drag and drop area for file upload -->
           <div class="file-upload-area" id="dropZone">
             <i class="fa fa-upload fa-3x mb-3" style="color: #6399AE;"></i>
@@ -100,7 +178,7 @@
           </div>
         </label>
         <!-- Restrict to ONLY PDF -->
-        <input type="file" id="pdfFiles" accept=".pdf" multiple style="display: none;">
+        <input type="file" id="curriculumFiles" accept=".pdf" multiple style="display: none;">
         <div id="fileList" class="file-list" style="display: none;"></div>
       </div>
       
@@ -135,11 +213,106 @@
         <button type="button" id="reanalyzeButton" class="btn btn-outline-blue btn-lg">
           <i class="fa fa-refresh"></i> Upload Different PDF
         </button>
-        <button type="button" id="continueButton" class="btn btn-orange btn-lg">
+        <button type="button" id="continueToApplicationPackageButton" class="btn btn-orange btn-lg">
           <i class="fa fa-arrow-right"></i> Continue to Application Package
         </button>
       </div>
     </div>
+
+    <!-- Package Documents Section (Step 2) -->
+    <div id="applicationPackageSection" style="display: none;">
+      <h2>Step 2: Upload Application Package Documents</h2>
+      <p class="mb-4">Please upload the following required documents to complete your application.</p>
+      
+      <form id="applicationPackageForm">
+        <div class="form-section">
+
+          <h2 class="subtitle-orange">2.1 Provider Application Form</h2>
+          <div class="info-box">
+            <h4><i class="fa fa-download"></i> Download the Application Form</h4>
+            <p>Download the official WorkSafeBC Provider Application Form, fill it out, and upload the completed form below.</p>
+            <a href="https://www.worksafebc.com/resources/health-safety/forms/asbestos-abatement-training-provider-application-form?lang=en&direct=" target="_blank">
+              <i class="fa fa-external-link"></i> Asbestos abatement training: Provider application form | WorkSafeBC
+            </a>
+          </div>
+
+          <label class="upload-label" for="providerApplicationForm">Upload Completed Provider Application Form <span style="color: red;">*</span></label>
+          <p class="upload-description">PDF format, maximum 10MB</p>
+          <label for="providerApplicationForm" style="cursor: pointer; display: block; margin: 0;">
+            <div class="file-upload-area" id="dropZone1">
+              <i class="fa fa-upload fa-2x mb-2" style="color: #6399AE;"></i>
+              <p style="margin: 0;"><strong>Click to select file</strong> or drag and drop</p>
+            </div>
+          </label>
+          <input type="file" id="providerApplicationForm" accept=".pdf" style="display: none;">
+          <div id="providerFormSelected" style="display: none;"></div>
+        </div>
+        
+        <div class="form-section">
+
+          <h2 class="subtitle-orange">2.2 Course Outline and/or Training Agenda</h2>
+          <div class="info-box">
+            <h4><i class="fa fa-info-circle"></i> What to Include</h4>
+            <p>Your application package must include a course outline and/or training agenda that specifies:</p>
+            <ul>
+              <li>Course title, course length, prerequisites (if applicable), and course fee</li>
+              <li>How the course will be delivered (online, in person, or blended)</li>
+              <li>A description of the topics covered and activities done during the course or training</li>
+            </ul>
+          </div>
+          
+          <label class="upload-label" for="courseOutline">Upload Course Outline <span style="color: red;">*</span></label>
+          <p class="upload-description">PDF format, maximum 10MB</p>
+          <label for="courseOutline" style="cursor: pointer; display: block; margin: 0;">
+            <div class="file-upload-area" id="dropZone2">
+              <i class="fa fa-upload fa-2x mb-2" style="color: #6399AE;"></i>
+              <p style="margin: 0;"><strong>Click to select file</strong> or drag and drop</p>
+            </div>
+          </label>
+          <input type="file" id="courseOutline" accept=".pdf" style="display: none;">
+          <div id="courseOutlineSelected" style="display: none;"></div>
+        </div>
+        
+        <div class="form-section">
+
+          <h2 class="subtitle-orange">2.3 Administration Document</h2>
+          <div class="info-box">
+            <h4><i class="fa fa-info-circle"></i> What to Include</h4>
+            <p>Your administration documents must provide information about:</p>
+            <ul>
+              <li><strong>Instructor qualifications:</strong> The qualifications and responsibilities of the person or people conducting the training (and conducting the practical skills test for Level 2)</li>
+              <li><strong>Training records maintenance:</strong> Your maintenance plan for training records (i.e., how you will maintain participant training records and ensure their accuracy)</li>
+              <li><strong>Quality monitoring and evaluation:</strong> Your monitoring and evaluation plan for maintaining the quality of training and testing (typically in the form of policy, procedures, and related reports, including a mechanism to collect participant feedback)</li>
+              <li><strong>Complaints and appeals:</strong> Your policy and procedures related to complaints and appeals</li>
+              <li><strong>Registration, withdrawal, and refunds:</strong> Your policy and procedures for registration, withdrawal, and refund processes</li>
+            </ul>
+          </div>
+
+          <label class="upload-label" for="administrationDocument">Upload Administration Document <span style="color: red;">*</span></label>
+          <p class="upload-description">PDF format, maximum 10MB</p>
+          <label for="administrationDocument" style="cursor: pointer; display: block; margin: 0;">
+            <div class="file-upload-area" id="dropZone3">
+              <i class="fa fa-upload fa-2x mb-2" style="color: #6399AE;"></i>
+              <p style="margin: 0;"><strong>Click to select file</strong> or drag and drop</p>
+            </div>
+          </label>
+          <input type="file" id="administrationDocument" accept=".pdf" style="display: none;">
+          <div id="administrationDocumentSelected" style="display: none;"></div>
+        </div>
+        
+        <div class="text-center btn-group">
+          <button type="button" id="backToCurriculumButton" class="btn btn-outline-blue btn-lg">
+            <i class="fa fa-arrow-left"></i> Back to Curriculum
+          </button>
+          <button type="button" id="submitButton" class="btn btn-orange btn-lg">
+            <i class="fa fa-paper-plane"></i> Submit Application
+          </button>
+        </div>
+      </form>
+    </div>
+
+    <div id="resultsSection" style="display: none;"></div>
+    
   </div>
   
   <!-- jQuery for simplified DOM manipulation -->
@@ -176,7 +349,7 @@
 
         // Applicant → proceed
         authToken = await user.getIdToken();
-        setupFileUpload();
+        setupCurriculumFileUpload();
         // NEW: Setup button handlers for analyze/reanalyze/submit
         setupButtons();
 
@@ -187,15 +360,15 @@
     });
     
     // set up file upload functionality (click to upload or drag+drop)
-    function setupFileUpload() {
+    function setupCurriculumFileUpload() {
       const dropZone = $('#dropZone');
-      const fileInput = $('#pdfFiles');
+      const fileInput = $('#curriculumFiles');
       
       // label for="pdfFile",
       // when clicking on that label, trigger click on "pdfFile"
       // opens system file dialog to select file
       fileInput.on('change', function(e) {
-        handleFileSelect(e.target.files);
+        handleCurriculumFileSelect(e.target.files);
       });
       
       // Highlight drop zone if drag over zone
@@ -216,13 +389,13 @@
         $(this).css('border-color', '#C9C5C1');
         const files = e.originalEvent.dataTransfer.files;
         if (files.length > 0) {
-          handleFileSelect(files);
+          handleCurriculumFileSelect(files);
         }
       });
     }
     
     // Validate and store file in memory (via selectedFile)
-    function handleFileSelect(files) {
+    function handleCurriculumFileSelect(files) {
       if (!files || files.length === 0) return;
 
       // Validate each file
@@ -259,10 +432,18 @@
 
     function displayFileList() {
       const fileList = $('#fileList');
+      const dropZone = $('#dropZone');
       fileList.empty();
       
       if (selectedFiles.length === 0) {
         fileList.hide();
+        // Reset drop zone to original state
+        dropZone.removeClass('has-file');
+        dropZone.html(`
+          <i class="fa fa-upload fa-3x mb-3" style="color: #6399AE;"></i>
+          <p><strong>Click to select file</strong> or drag and drop here</p>
+          <p class="text-muted">PDF format, maximum 10MB per file, up to 10 files</p>
+        `);
         return;
       }
       
@@ -289,11 +470,96 @@
       });
     }
     
-    // NEW: Setup button click handlers for new three-button flow
     function setupButtons() {
       $('#analyzeButton').on('click', analyzeCurriculum);
       $('#reanalyzeButton').on('click', resetForm);
-      $('#continueButton').on('click', continueToPackage);
+      $('#continueToApplicationPackageButton').on('click', continueToApplicationPackage);
+      $('#backToCurriculumButton').on('click', backToCurriculum);
+      $('#submitButton').on('click', submitApplication);
+      
+      // Setup drag-drop for application package files
+      setupApplicationPackageUploads();
+    } 
+    
+    // Setup drag-drop zones for application package files
+    function setupApplicationPackageUploads() {
+      setupApplicationPackageFileUpload('providerApplicationForm', 'dropZone1', 'providerFormSelected');
+      setupApplicationPackageFileUpload('courseOutline', 'dropZone2', 'courseOutlineSelected');
+      setupApplicationPackageFileUpload('administrationDocument', 'dropZone3', 'administrationDocumentSelected');
+    }
+ 
+    function setupApplicationPackageFileUpload(inputId, dropZoneId, selectedId) {
+      const fileInput = $(`#${inputId}`);
+      const dropZone = $(`#${dropZoneId}`);
+      
+      fileInput.on('change', function(e) {
+        handleApplicationPackageFileSelect(e.target.files[0], inputId, dropZoneId, selectedId);
+      });
+      
+      dropZone.on('dragover', function(e) {
+        e.preventDefault();
+        $(this).css('border-color', '#ED8B00');
+      });
+      
+      dropZone.on('dragleave', function(e) {
+        e.preventDefault();
+        $(this).css('border-color', '#C9C5C1');
+      });
+      
+      dropZone.on('drop', function(e) {
+        e.preventDefault();
+        $(this).css('border-color', '#C9C5C1');
+        const files = e.originalEvent.dataTransfer.files;
+        if (files.length > 0) {
+          handleApplicationPackageFileSelect(files[0], inputId, dropZoneId, selectedId);
+        }
+      });
+    }
+
+    function handleApplicationPackageFileSelect(file, inputId, dropZoneId, selectedId) {
+      if (!file) return;
+      
+      // Validate file type
+      if (file.type !== 'application/pdf') {
+        alert('Only PDF files are allowed');
+        return;
+      }
+      
+      // Validate file size (10MB max)
+      if (file.size > 10 * 1024 * 1024) {
+        alert('File exceeds 10MB limit');
+        return;
+      }
+      
+      // Set file to the hidden input using DataTransfer
+      const dataTransfer = new DataTransfer();
+      dataTransfer.items.add(file);
+      document.getElementById(inputId).files = dataTransfer.files;
+      
+      // Show file name and size with remove button
+      const sizeInMB = (file.size / 1024 / 1024).toFixed(2);
+      const selectedDiv = $(`#${selectedId}`);
+      selectedDiv.html(`
+        <div class="file-item">
+          <span><i class="fa fa-file-pdf-o"></i> ${file.name} (${sizeInMB} MB)</span>
+          <span class="file-item-remove" data-input="${inputId}" data-dropzone="${dropZoneId}" data-selected="${selectedId}">
+            <i class="fa fa-times"></i> Remove
+          </span>
+        </div>
+      `);
+      selectedDiv.show();
+      
+      // Add click handler to remove button
+      selectedDiv.find('.file-item-remove').on('click', function() {
+        removeApplicationPackageFile($(this).data('input'), $(this).data('dropzone'), $(this).data('selected'));
+      });
+    }
+
+    function removeApplicationPackageFile(inputId, dropZoneId, selectedId) {
+      // Clear the hidden file input
+      $(`#${inputId}`).val('');
+      // Hide the selected file display
+      $(`#${selectedId}`).hide().empty();
     }
     
     // NEW: Analyze curriculum without saving (preview only)
@@ -382,35 +648,94 @@
       $('#analysisSection').hide();
       $('#applicationForm').show();
       $('#fileList').hide();
-      $('#pdfFiles').val('');
+      $('#curriculumFiles').val('');
       selectedFiles = [];
       analysisResults = null;
     }
     
-    // Create draft application and redirect to application package page
-    async function continueToPackage() {
+    // Show application package upload section
+    function continueToApplicationPackage() {
       if (selectedFiles.length === 0 || !analysisResults) {
         alert('Please analyze your curriculum first');
         return;
       }
       
       $('#analysisSection').hide();
-      $('#loadingSection').show();
-      $('#loadingText').text('Saving your curriculum analysis...');
+      $('#applicationPackageSection').show();
       
+      // Update progress indicator
+      $('#step1-indicator').removeClass('active').addClass('completed');
+      $('#step2-indicator').addClass('active');
+      
+      window.scrollTo(0, 0);
+    }
+
+    // Go back to analysis results
+    function backToCurriculum() {
+      $('#applicationPackageSection').hide();
+      $('#analysisSection').show();
+      
+      // Update progress indicator
+      $('#step1-indicator').addClass('active').removeClass('completed');
+      $('#step2-indicator').removeClass('active');
+      
+      window.scrollTo(0, 0);
+    }
+
+    // Validate and collect package files
+    function getApplicationPackageFiles() {
+      const providerApplicationForm = $('#providerApplicationForm')[0].files[0];
+      const courseOutline = $('#courseOutline')[0].files[0];
+      const administrationDocument = $('#administrationDocument')[0].files[0];
+      
+      // Validate all files present
+      if (!providerApplicationForm || !courseOutline || !administrationDocument) {
+        throw new Error('Please upload all 3 required application package documents');
+      }
+      
+      // Validate file sizes (10MB each)
+      const maxSize = 10 * 1024 * 1024;
+      if (providerApplicationForm.size > maxSize || courseOutline.size > maxSize || administrationDocument.size > maxSize) {
+        throw new Error('Each application package document must be under 10MB');
+      }
+      
+      return {
+        providerApplicationForm,
+        courseOutline,
+        administrationDocument
+      };
+    }
+
+    // Final submission with curriculum + package files
+    async function submitApplication() {
       try {
-        // Prepare form data for multipart upload
+        // Get and validate package files
+        const applicationPackageFiles = getApplicationPackageFiles();
+        
+        $('#applicationPackageSection').hide();
+        $('#loadingSection').show();
+        $('#loadingText').text('Submitting your application...');
+        
+        // Update progress indicator 
+        $('#step2-indicator').removeClass('active').addClass('completed');
+        $('#step3-indicator').addClass('active');
+        
         const formData = new FormData();
         formData.append('providerName', $('#providerName').val());
         formData.append('organizationName', $('#organizationName').val());
-        formData.append('analysisResults', JSON.stringify(analysisResults)); // cache analysisResults to avoid calling analyzeCurriculum again
+        formData.append('analysisResults', JSON.stringify(analysisResults));
+        
+        // Add curriculum files
         selectedFiles.forEach(file => {
           formData.append('pdfs', file);
         });
         
-        // Makes a draft version until the applicant finishes submitting the 
-        // supplementary documents.
-        const response = await fetch('/api/applications/create-draft', {
+        // Add package files
+        formData.append('applicationPackageFiles', applicationPackageFiles.providerApplicationForm);
+        formData.append('applicationPackageFiles', applicationPackageFiles.courseOutline);
+        formData.append('applicationPackageFiles', applicationPackageFiles.administrationDocument);
+        
+        const response = await fetch('/api/applications/submit', {
           method: 'POST',
           headers: { 'Authorization': `Bearer ${authToken}` },
           body: formData
@@ -419,12 +744,7 @@
         const result = await response.json();
         
         if (result.success) {
-          // Validate that we got a proper Firestore doc ID
-          if (!result.id || result.id === 'undefined') {
-            throw new Error('Server did not return a valid application ID. Please try again.');
-          }
-          // Redirect to application package page
-          window.location.href = `/application-package.html?id=${result.id}&appId=${result.applicationId}`;
+          displaySubmissionResults(result);
         } else {
           throw new Error(result.error);
         }
@@ -432,9 +752,39 @@
       } catch (error) {
         console.error('Error:', error);
         $('#loadingSection').hide();
-        $('#analysisSection').show();
-        alert('Error saving draft: ' + error.message);
+        $('#applicationPackageSection').show();
+        alert('Error submitting application: ' + error.message);
       }
+    }
+
+    // Show success message after submission
+    function displaySubmissionResults(result) {
+      $('#loadingSection').hide();
+      
+      // Hide all form sections
+      $('#applicationForm').hide();
+      $('#analysisSection').hide();
+      $('#applicationPackageSection').hide();
+      
+      // Update progress bar - mark step 3 as completed (green)
+      $('#step3-indicator').removeClass('active').addClass('completed');
+      
+      // Show clean success message with link to view applications
+      $('#resultsSection').html(`
+        <div class="success-message">
+          <h3><i class="fa fa-check-circle"></i> Application Submitted Successfully</h3>
+          <p><strong>Application ID:</strong> ${result.application.applicationId}</p>
+          <p>Your application has been submitted and is awaiting review by WorkSafeBC.</p>
+          <div class="text-center mt-4">
+            <a href="/applicant-index.html" class="btn btn-blue btn-lg">
+              <i class="fa fa-list"></i> View My Applications
+            </a>
+          </div>
+        </div>
+      `);
+      $('#resultsSection').show();
+      
+      window.scrollTo(0, 0);
     }
     
   </script>

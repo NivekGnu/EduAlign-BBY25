@@ -31,7 +31,7 @@ function generateApplicationId(docId, createdAt) {
  * @param {String} data.email - Contact email
  * @param {String} data.status - Initial status (typically "Unreviewed")
  * @param {Date} data.submittedDate - Submission date
- * @param {Array} data.pdfFiles - PDF file metadata for version 1
+ * @param {Array} data.curriculumFiles - PDF file metadata for version 1
  * @param {Object} data.excelFile - Excel file metadata for version 1
  * @param {Array} [data.mappings=[]] - Competency mappings for version 1
  * @param {Array} [data.missingCriteria=[]] - Missing competencies for version 1
@@ -46,8 +46,8 @@ async function createApplication(data) {
     const version1 = {
       version: 1,
       analyzedAt: new Date(),
-      pdfFiles: data.pdfFiles || [], 
-      packageFiles: data.packageFiles || [],
+      curriculumFiles: data.curriculumFiles || [], 
+      applicationPackageFiles: data.applicationPackageFiles || [],
       excelFile: data.excelFile || null,
       missingCriteria: data.missingCriteria || [],
       mappings: data.mappings || []
@@ -147,7 +147,8 @@ async function updateApplication(id, data) {
  * 
  * @param {String} id - Firestore document ID
  * @param {Object} revisionData - New version data
- * @param {Array} revisionData.pdfFiles - PDF file metadata
+ * @param {Array} revisionData.curriculumFiles - Curriculum file metadata
+ * @param {Array} revisionData.applicationPackageFiles - Application package file metadata
  * @param {Object} revisionData.excelFile - Excel file metadata
  * @param {Array} revisionData.missingCriteria - Missing competencies
  * @param {Array} revisionData.mappings - Competency mappings
@@ -170,8 +171,8 @@ async function addRevision(id, revisionData) {
     const newVersion = {
       version: newVersionNumber,
       analyzedAt: new Date(),
-      pdfFiles: revisionData.pdfFiles || [],
-      packageFiles: revisionData.packageFiles || [],
+      curriculumFiles: revisionData.curriculumFiles || [],
+      applicationPackageFiles: revisionData.applicationPackageFiles || [],
       excelFile: revisionData.excelFile || null,
       missingCriteria: revisionData.missingCriteria || [],
       mappings: revisionData.mappings || []

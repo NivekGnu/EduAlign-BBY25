@@ -72,7 +72,7 @@ async function analyzeCurriculum(pdfText, competencies) {
  */
 function buildPrompt(pdfText, competencies) {
   // Groq free tier has 100k token daily limit
-  const limitedText = pdfText.substring(0, 50000);
+  const limitedText = pdfText.substring(0, 10000); // temporarily set to 10000 to reduce token consumption for Groq
   
   //loops through the array, numbers, and joins them. 
   const competencyList = competencies.map((c, i) => 

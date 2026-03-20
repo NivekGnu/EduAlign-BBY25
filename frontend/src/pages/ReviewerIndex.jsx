@@ -7,40 +7,31 @@ import "../styles/reviewerindex.css";
 const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:3000";
 
 function formatDate(ts) {
-  // supports Firestore timestamp { _seconds } or ISO string
   if (!ts) return "—";
-  if (typeof ts === "string") {
-    const d = new Date(ts);
-    return isNaN(d.getTime())
-      ? "—"
-      : d.toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" });
-  }
-  if (ts?._seconds) {
-    const d = new Date(ts._seconds * 1000);
-    return d.toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" });
-  }
-  return "—";
+  const date = ts._seconds ? new Date(ts._seconds * 1000) : new Date(ts);
+  return isNaN(date.getTime())
+    ? "—"
+    : date.toLocaleDateString("en-US", {
+        year: "numeric",
+        month: "short",
+        day: "numeric",
+      });
 }
 
 export default function ReviewerIndex() {
   const navigate = useNavigate();
 
-  const [token, setToken] = useState(null);
-
+  const [authToken, setAuthToken] = useState(null);
+  const [applications, setApplications] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
-  const [applications, setApplications] = useState([]);
-  const [stats, setStats] = useState({ total: 0, unreviewed: 0, incomplete: 0, approved: 0 });
-
-  // Modal state
   const [modalOpen, setModalOpen] = useState(false);
   const [modalLoading, setModalLoading] = useState(false);
   const [modalError, setModalError] = useState("");
-  const [modalData, setModalData] = useState(null); 
-  // modalData shape like: { application, pdfFiles, filledExcel }
+  const [modalData, setModalData] = useState(null);
+  const [expandedVersions, setExpandedVersions] = useState({});
 
-  // Auth gate (reviewer only)
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, async (user) => {
       if (!user) {
@@ -58,10 +49,10 @@ export default function ReviewerIndex() {
           return;
         }
 
-        const t = await user.getIdToken();
-        setToken(t);
-      } catch (e) {
-        console.error(e);
+        const token = await user.getIdToken();
+        setAuthToken(token);
+      } catch (err) {
+        console.error(err);
         navigate("/", { replace: true });
       }
     });
@@ -69,216 +60,141 @@ export default function ReviewerIndex() {
     return () => unsub();
   }, [navigate]);
 
-  // Load applications once token is ready
   useEffect(() => {
-    if (!token) return;
+    if (!authToken) return;
+    loadApplications();
+  }, [authToken]);
 
-    (async () => {
-      setLoading(true);
-      setError("");
+  async function loadApplications() {
+    setLoading(true);
+    setError("");
 
-      try {
-        const res = await fetch(`${API_BASE}/api/reviewer/applications`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
+    try {
+      const response = await fetch(`${API_BASE}/api/reviewer/applications`, {
+        headers: {
+          Authorization: `Bearer ${authToken}`,
+        },
+      });
 
-        const data = await res.json().catch(() => ({}));
-        if (!res.ok || !data?.success) {
-          throw new Error(data?.error || `Failed to load (${res.status})`);
-        }
+      const result = await response.json().catch(() => ({}));
 
-        setApplications(data.applications || []);
-        setStats(
-          data.stats || {
-            total: (data.applications || []).length,
-            unreviewed: 0,
-            incomplete: 0,
-            approved: 0,
-          }
-        );
-      } catch (e) {
-        setError(e?.message || "Failed to load applications.");
-      } finally {
-        setLoading(false);
+      if (!response.ok || !result?.success) {
+        throw new Error(result?.error || `Failed to load (${response.status})`);
       }
-    })();
-  }, [token]);
+
+      setApplications(result.applications || []);
+    } catch (err) {
+      console.error(err);
+      setError(err?.message || "Failed to load applications.");
+    } finally {
+      setLoading(false);
+    }
+  }
 
   async function handleLogout() {
     await signOut(auth);
     navigate("/", { replace: true });
   }
 
-  // Update status
-  async function updateStatus(appId, newStatus) {
-    if (!token) return;
+  async function updateStatus(id, status) {
+    const previousApplications = applications;
 
-    // Optimistic update UI
     setApplications((prev) =>
-      prev.map((a) => (a._id === appId ? { ...a, status: newStatus } : a))
+      prev.map((app) => (app._id === id ? { ...app, status } : app))
     );
 
     try {
-      const res = await fetch(`${API_BASE}/api/reviewer/applications/${appId}/status`, {
+      const response = await fetch(`${API_BASE}/api/reviewer/applications/${id}/status`, {
         method: "PATCH",
         headers: {
-          Authorization: `Bearer ${token}`,
+          Authorization: `Bearer ${authToken}`,
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ status: newStatus }),
+        body: JSON.stringify({ status }),
       });
 
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok || !data?.success) {
-        throw new Error(data?.error || `Update failed (${res.status})`);
+      const result = await response.json().catch(() => ({}));
+
+      if (!response.ok || !result?.success) {
+        throw new Error(result?.error || `Failed to update (${response.status})`);
       }
-
-      // Recompute stats locally (like your old code)
-      setStatsFromList((list) =>
-        list.map((a) => (a._id === appId ? { ...a, status: newStatus } : a))
-      );
-    } catch (e) {
-      // Revert on failure by reloading list (simplest + reliable)
-      console.error(e);
-      setError(e?.message || "Failed to update status.");
-      // Reload applications quickly
-      refresh();
+    } catch (err) {
+      console.error(err);
+      setApplications(previousApplications);
+      setError(err?.message || "Failed to update status.");
     }
   }
 
-  function setStatsFromList(nextApplicationsOrUpdater) {
-    setApplications((prev) => {
-      const next =
-        typeof nextApplicationsOrUpdater === "function"
-          ? nextApplicationsOrUpdater(prev)
-          : nextApplicationsOrUpdater;
-
-      const counts = { Unreviewed: 0, Incomplete: 0, Approved: 0 };
-      next.forEach((a) => {
-        if (counts[a.status] !== undefined) counts[a.status] += 1;
-      });
-
-      setStats({
-        total: next.length,
-        unreviewed: counts.Unreviewed,
-        incomplete: counts.Incomplete,
-        approved: counts.Approved,
-      });
-
-      return next;
-    });
-  }
-
-  async function refresh() {
-    if (!token) return;
-    setLoading(true);
-    setError("");
-    try {
-      const res = await fetch(`${API_BASE}/api/reviewer/applications`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok || !data?.success) throw new Error(data?.error || `Failed (${res.status})`);
-      setApplications(data.applications || []);
-      setStats(data.stats || { total: 0, unreviewed: 0, incomplete: 0, approved: 0 });
-    } catch (e) {
-      setError(e?.message || "Failed to refresh.");
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  // View application details (modal)
-  async function viewApplication(appId) {
-    if (!token) return;
-
+  async function viewApplication(id) {
     setModalOpen(true);
     setModalLoading(true);
     setModalError("");
     setModalData(null);
+    setExpandedVersions({});
 
     try {
-      const res = await fetch(`${API_BASE}/api/reviewer/applications/${appId}`, {
-        headers: { Authorization: `Bearer ${token}` },
+      const response = await fetch(`${API_BASE}/api/reviewer/applications/${id}`, {
+        headers: {
+          Authorization: `Bearer ${authToken}`,
+        },
       });
 
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok || !data?.success) {
-        throw new Error(data?.error || `Failed to load (${res.status})`);
+      const result = await response.json().catch(() => ({}));
+
+      if (!response.ok || !result?.success) {
+        throw new Error(result?.error || `Failed to load application (${response.status})`);
       }
 
-      setModalData({
-        application: data.application,
-        pdfFiles: data.pdfFiles || [],
-        filledExcel: data.filledExcel || null,
+      const app = result.application;
+      const versions = result.versions || [];
+
+      const initialExpanded = {};
+      versions.forEach((v) => {
+        if (v.version === app.currentVersion) {
+          initialExpanded[v.version] = true;
+        }
       });
-    } catch (e) {
-      setModalError(e?.message || "Failed to load details.");
+
+      setExpandedVersions(initialExpanded);
+      setModalData({
+        application: app,
+        versions,
+      });
+    } catch (err) {
+      console.error(err);
+      setModalError(err?.message || "Failed to load application details.");
     } finally {
       setModalLoading(false);
     }
   }
 
-  const tableBody = useMemo(() => {
-    if (loading) {
-      return (
-        <tr>
-          <td colSpan="7" className="text-center">
-            <i className="fa fa-spinner fa-spin" /> Loading...
-          </td>
-        </tr>
-      );
-    }
+  function toggleVersion(versionNumber) {
+    setExpandedVersions((prev) => ({
+      ...prev,
+      [versionNumber]: !prev[versionNumber],
+    }));
+  }
 
-    if (!applications.length) {
-      return (
-        <tr>
-          <td colSpan="7" className="text-center">
-            No applications
-          </td>
-        </tr>
-      );
-    }
-
-    return applications.map((app) => (
-      <tr key={app._id}>
-        <td>
-          <strong>{app.applicationId}</strong>
-        </td>
-        <td>{app.providerName}</td>
-        <td>{app.organizationName}</td>
-        <td>{app.email}</td>
-        <td>{formatDate(app.submittedDate)}</td>
-        <td style={{ minWidth: 160 }}>
-          <select
-            className="form-control form-control-sm"
-            value={app.status}
-            onChange={(e) => updateStatus(app._id, e.target.value)}
-          >
-            <option value="Unreviewed">Unreviewed</option>
-            <option value="Incomplete">Incomplete</option>
-            <option value="Approved">Approved</option>
-          </select>
-        </td>
-        <td>
-          <button className="btn btn-sm btn-blue" onClick={() => viewApplication(app._id)}>
-            <i className="fa fa-eye" /> View
-          </button>
-        </td>
-      </tr>
-    ));
-  }, [applications, loading]);
+  const stats = useMemo(() => {
+    return {
+      total: applications.length,
+      unreviewed: applications.filter((a) => a.status === "Unreviewed").length,
+      incomplete: applications.filter((a) => a.status === "Incomplete").length,
+      approved: applications.filter((a) => a.status === "Approved").length,
+    };
+  }, [applications]);
 
   return (
     <div className="wsbc-page_reviewer">
       <div className="main-container_reviewer">
-        <div className="d-flex justify-content-between align-items-center mb-4">
+        <div className="header-bar_reviewer">
           <img
             src="https://ux-static.online.worksafebc.com/css/assets/img/worksafebc-logo.jpg"
             alt="WorkSafeBC"
-            className="logo"
+            className="logo_reviewer"
             style={{ margin: 0 }}
           />
+
           <button className="btn btn-outline-grey" onClick={handleLogout}>
             <i className="fa fa-sign-out" /> Logout
           </button>
@@ -286,32 +202,32 @@ export default function ReviewerIndex() {
 
         <h1>Training Provider Application Reviews</h1>
 
-        {error ? <div className="wsbc-alert wsbc-alert-warning">{error}</div> : null}
+        {error ? <div className="alert-warning_reviewer">{error}</div> : null}
 
-        <div className="stats-row">
-          <div className="stat-card stat-unreviewed">
+        <div className="stats-row_reviewer">
+          <div className="stat-card_reviewer stat-unreviewed_reviewer">
             <h3>{stats.unreviewed}</h3>
             <p>Unreviewed</p>
           </div>
 
-          <div className="stat-card stat-incomplete">
+          <div className="stat-card_reviewer stat-incomplete_reviewer">
             <h3>{stats.incomplete}</h3>
             <p>Incomplete</p>
           </div>
 
-          <div className="stat-card stat-approved">
+          <div className="stat-card_reviewer stat-approved_reviewer">
             <h3>{stats.approved}</h3>
             <p>Approved</p>
           </div>
 
-          <div className="stat-card stat-total">
+          <div className="stat-card_reviewer stat-total_reviewer">
             <h3>{stats.total}</h3>
             <p>Total Applications</p>
           </div>
         </div>
 
         <div className="table-responsive">
-          <table className="table table-striped" id="applicationsTable">
+          <table className="table table-striped">
             <thead>
               <tr>
                 <th>Application ID</th>
@@ -323,36 +239,98 @@ export default function ReviewerIndex() {
                 <th>Actions</th>
               </tr>
             </thead>
-            <tbody>{tableBody}</tbody>
+
+            <tbody>
+              {loading ? (
+                <tr>
+                  <td colSpan="7" className="text-center">
+                    <i className="fa fa-spinner fa-spin" /> Loading...
+                  </td>
+                </tr>
+              ) : applications.length === 0 ? (
+                <tr>
+                  <td colSpan="7" className="text-center">
+                    No applications yet.
+                  </td>
+                </tr>
+              ) : (
+                applications.map((app) => (
+                  <tr key={app._id}>
+                    <td>
+                      <strong>{app.applicationId}</strong>
+                    </td>
+                    <td>{app.providerName}</td>
+                    <td>{app.organizationName}</td>
+                    <td>{app.email}</td>
+                    <td>{formatDate(app.submittedDate)}</td>
+                    <td>
+                      <select
+                        className="form-control form-control-sm"
+                        value={app.status}
+                        onChange={(e) => updateStatus(app._id, e.target.value)}
+                      >
+                        <option value="Unreviewed">Unreviewed</option>
+                        <option value="Incomplete">Incomplete</option>
+                        <option value="Approved">Approved</option>
+                      </select>
+                    </td>
+                    <td>
+                      <button
+                        className="btn btn-sm btn-blue"
+                        onClick={() => viewApplication(app._id)}
+                      >
+                        <i className="fa fa-eye" /> View
+                      </button>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
           </table>
         </div>
       </div>
 
-      {/* React Modal */}
       {modalOpen ? (
-        <div className="wsbc-modal-overlay" onMouseDown={() => setModalOpen(false)}>
-          <div className="wsbc-modal" onMouseDown={(e) => e.stopPropagation()}>
-            <div className="wsbc-modal-header">
-              <h5 className="wsbc-modal-title">Application Details</h5>
-              <button className="wsbc-modal-close" onClick={() => setModalOpen(false)}>
+        <div
+          className="modal-overlay_reviewer"
+          onMouseDown={() => setModalOpen(false)}
+        >
+          <div
+            className="modal-box_reviewer"
+            onMouseDown={(e) => e.stopPropagation()}
+          >
+            <div className="modal-header_reviewer">
+              <h5 className="modal-title_reviewer">Application Details</h5>
+              <button
+                className="modal-close_reviewer"
+                onClick={() => setModalOpen(false)}
+              >
                 &times;
               </button>
             </div>
 
-            <div className="wsbc-modal-body">
+            <div className="modal-body_reviewer">
               {modalLoading ? (
                 <p className="text-center">
                   <i className="fa fa-spinner fa-spin" /> Loading...
                 </p>
               ) : modalError ? (
-                <div className="wsbc-alert wsbc-alert-warning">{modalError}</div>
+                <p className="text-danger">{modalError}</p>
               ) : modalData ? (
-                <ModalContent data={modalData} />
+                <ReviewerModalContent
+                  data={modalData}
+                  expandedVersions={expandedVersions}
+                  toggleVersion={toggleVersion}
+                />
               ) : null}
             </div>
 
-            <div className="wsbc-modal-footer">
-              <button className="btn btn-secondary" onClick={() => setModalOpen(false)}>
+            <div className="modal-footer_reviewer">
+              <button
+                type="button"
+                className="btn btn-secondary"
+                onClick={() => setModalOpen(false)}
+              >
                 Close
               </button>
             </div>
@@ -363,9 +341,9 @@ export default function ReviewerIndex() {
   );
 }
 
-function ModalContent({ data }) {
+function ReviewerModalContent({ data, expandedVersions, toggleVersion }) {
   const app = data.application;
-  const missing = app?.missingCriteria || [];
+  const versions = [...(data.versions || [])].sort((a, b) => b.version - a.version);
 
   return (
     <div>
@@ -381,48 +359,111 @@ function ModalContent({ data }) {
       <p>
         <strong>Status:</strong> {app.status}
       </p>
-
-      <hr />
-      <h5>Missing Competencies</h5>
-      {missing.length > 0 ? (
-        <ul>
-          {missing.map((c) => (
-            <li key={c}>{c}</li>
-          ))}
-        </ul>
-      ) : (
-        <p className="text-success">All covered!</p>
-      )}
-
-      <hr />
-      <h5>Uploaded Documents</h5>
-      {data.pdfFiles?.length > 0 ? (
-        <ul>
-          {data.pdfFiles.map((pdf) => (
-            <li key={pdf.signedUrl || pdf.filename}>
-              <a href={pdf.signedUrl} target="_blank" rel="noreferrer">
-                {pdf.filename}
-              </a>
-            </li>
-          ))}
-        </ul>
-      ) : (
-        <p>—</p>
-      )}
-
-      {data.filledExcel ? (
-        <>
-          <hr />
-          <h5>Curriculum Mapping</h5>
-          <ul>
-            <li>
-              <a href={data.filledExcel.signedUrl} target="_blank" rel="noreferrer">
-                {data.filledExcel.filename}
-              </a>
-            </li>
-          </ul>
-        </>
+      <p>
+        <strong>Submitted:</strong> {formatDate(app.submittedDate)}
+      </p>
+      {app.lastRevised ? (
+        <p>
+          <strong>Last Revised:</strong> {formatDate(app.lastRevised)}
+        </p>
       ) : null}
+      {app.reviewerNotes ? (
+        <p>
+          <strong>Reviewer Notes:</strong> {app.reviewerNotes}
+        </p>
+      ) : null}
+
+      <hr />
+      <h5>Version History</h5>
+
+      {versions.length === 0 ? (
+        <p className="text-muted">No versions available</p>
+      ) : (
+        <div className="accordion_reviewer">
+          {versions.map((v) => {
+            const isCurrentVersion = v.version === app.currentVersion;
+            const isExpanded = !!expandedVersions[v.version];
+
+            return (
+              <div className="card_reviewer" key={v.version}>
+                <div className="card-header_reviewer">
+                  <button
+                    className="btn-link_reviewer"
+                    type="button"
+                    onClick={() => toggleVersion(v.version)}
+                  >
+                    {isExpanded ? "▼" : "▶"} Version {v.version}{" "}
+                    {isCurrentVersion ? "(Current)" : ""} - {formatDate(v.analyzedAt)}
+                  </button>
+                </div>
+
+                {isExpanded ? (
+                  <div className="card-body_reviewer">
+                    <h6>Missing Competencies</h6>
+                    {v.missingCriteria && v.missingCriteria.length > 0 ? (
+                      <ul>
+                        {v.missingCriteria.map((c) => (
+                          <li key={c}>{c}</li>
+                        ))}
+                      </ul>
+                    ) : (
+                      <p className="text-success">All competencies covered!</p>
+                    )}
+
+                    <h6>Curriculum Documents</h6>
+                    {v.curriculumFiles && v.curriculumFiles.length > 0 ? (
+                      <ul>
+                        {v.curriculumFiles.map((pdf, index) => (
+                          <li key={`${pdf.filename}-${index}`}>
+                            <a href={pdf.signedUrl} target="_blank" rel="noreferrer">
+                              <i className="fa fa-file-pdf-o" /> {pdf.filename}
+                            </a>
+                          </li>
+                        ))}
+                      </ul>
+                    ) : (
+                      <p className="text-muted">No curriculum files</p>
+                    )}
+
+                    {v.applicationPackageFiles && v.applicationPackageFiles.length > 0 ? (
+                      <>
+                        <h6>Application Package Documents</h6>
+                        <ul>
+                          {v.applicationPackageFiles.map((pkg, index) => (
+                            <li key={`${pkg.filename}-${index}`}>
+                              <a href={pkg.signedUrl} target="_blank" rel="noreferrer">
+                                <i className="fa fa-file-pdf-o" /> {pkg.filename}
+                              </a>{" "}
+                              <span className="text-muted">({pkg.label})</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </>
+                    ) : null}
+
+                    {v.excelFile ? (
+                      <>
+                        <h6>Generated Competency Mapping</h6>
+                        <ul>
+                          <li>
+                            <a
+                              href={v.excelFile.signedUrl}
+                              target="_blank"
+                              rel="noreferrer"
+                            >
+                              <i className="fa fa-file-excel-o" /> {v.excelFile.filename}
+                            </a>
+                          </li>
+                        </ul>
+                      </>
+                    ) : null}
+                  </div>
+                ) : null}
+              </div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }

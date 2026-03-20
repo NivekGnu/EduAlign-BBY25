@@ -2,82 +2,48 @@ import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { onAuthStateChanged, signOut } from "firebase/auth";
 import { auth } from "../firebase/firebase";
-import { API_BASE_URL } from "../utils/api";
 import "../styles/applicantindex.css";
+
+const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:3000";
 
 function formatDate(ts) {
   if (!ts) return "—";
-  const date = ts?._seconds ? new Date(ts._seconds * 1000) : new Date(ts);
-  return date.toLocaleDateString("en-US", {
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-  });
-}
-
-function Modal({ title, isOpen, onClose, children }) {
-  if (!isOpen) return null;
-
-  return (
-    <div className="modal-backdrop_applicant" onClick={onClose}>
-      <div
-        className="modal-panel_applicant"
-        onClick={(e) => e.stopPropagation()}
-        role="dialog"
-        aria-modal="true"
-      >
-        <div className="modal-header_applicant">
-          <h5 className="modal-title">{title}</h5>
-          <button className="btn btn-outline-grey" onClick={onClose}>
-            &times;
-          </button>
-        </div>
-
-        <div className="modal-body_applicant">{children}</div>
-
-        <div className="modal-footer_applicant">
-          <button className="btn btn-outline-grey" onClick={onClose}>
-            Close
-          </button>
-        </div>
-      </div>
-    </div>
-  );
+  const date = ts._seconds ? new Date(ts._seconds * 1000) : new Date(ts);
+  return isNaN(date.getTime())
+    ? "—"
+    : date.toLocaleDateString("en-US", {
+        year: "numeric",
+        month: "short",
+        day: "numeric",
+      });
 }
 
 export default function ApplicantIndex() {
   const navigate = useNavigate();
 
+  const [authToken, setAuthToken] = useState(null);
+  const [userInfo, setUserInfo] = useState(null);
+
   const [loading, setLoading] = useState(true);
-  const [user, setUser] = useState(null);
-
-  const [authToken, setAuthToken] = useState("");
+  const [error, setError] = useState("");
   const [applications, setApplications] = useState([]);
-  const [tableError, setTableError] = useState("");
 
-  const [viewOpen, setViewOpen] = useState(false);
-  const [viewLoading, setViewLoading] = useState(false);
-  const [viewError, setViewError] = useState("");
-  const [viewData, setViewData] = useState(null); // { application, pdfFiles, filledExcel }
+  const [modalOpen, setModalOpen] = useState(false);
+  const [modalLoading, setModalLoading] = useState(false);
+  const [modalError, setModalError] = useState("");
+  const [modalData, setModalData] = useState(null);
 
-  const stats = useMemo(() => {
-    const total = applications.length;
-    const unreviewed = applications.filter((a) => a.status === "Unreviewed").length;
-    const incomplete = applications.filter((a) => a.status === "Incomplete").length;
-    const approved = applications.filter((a) => a.status === "Approved").length;
-    return { total, unreviewed, incomplete, approved };
-  }, [applications]);
+  const [expandedVersions, setExpandedVersions] = useState({});
 
-  // Auth guard + role check
   useEffect(() => {
-    const unsub = onAuthStateChanged(auth, async (u) => {
-      if (!u) {
+    const unsub = onAuthStateChanged(auth, async (user) => {
+      if (!user) {
         navigate("/", { replace: true });
         return;
       }
 
       try {
-        const tokenResult = await u.getIdTokenResult(true);
+        const tokenResult = await user.getIdTokenResult(true);
         const role = tokenResult?.claims?.role || "applicant";
 
         if (role === "reviewer") {
@@ -85,10 +51,14 @@ export default function ApplicantIndex() {
           return;
         }
 
-        const token = await u.getIdToken();
-        setUser(u);
+        const token = await user.getIdToken();
         setAuthToken(token);
+        setUserInfo({
+          email: user.email,
+          displayName: user.displayName,
+        });
       } catch (err) {
+        console.error(err);
         navigate("/", { replace: true });
       }
     });
@@ -96,62 +66,98 @@ export default function ApplicantIndex() {
     return () => unsub();
   }, [navigate]);
 
-  // Load applications once we have token
   useEffect(() => {
     if (!authToken) return;
-
-    (async () => {
-      setLoading(true);
-      setTableError("");
-
-      try {
-        const res = await fetch(`${API_BASE_URL}/api/applications/my-applications`, {
-          headers: { Authorization: `Bearer ${authToken}` },
-        });
-
-        const result = await res.json();
-        if (!res.ok || !result.success) {
-          throw new Error(result.error || "Failed to load applications");
-        }
-
-        setApplications(result.applications || []);
-      } catch (err) {
-        setTableError(err.message || "Error loading applications");
-      } finally {
-        setLoading(false);
-      }
-    })();
+    loadMyApplications();
   }, [authToken]);
+
+  async function loadMyApplications() {
+    setLoading(true);
+    setError("");
+
+    try {
+      const response = await fetch(`${API_BASE}/api/applications/my-applications`, {
+        headers: {
+          Authorization: `Bearer ${authToken}`,
+        },
+      });
+
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok || !result?.success) {
+        throw new Error(result?.error || `Failed to load (${response.status})`);
+      }
+
+      setApplications(result.applications || []);
+    } catch (err) {
+      console.error(err);
+      setError(err?.message || "Failed to load applications.");
+    } finally {
+      setLoading(false);
+    }
+  }
 
   async function handleLogout() {
     await signOut(auth);
     navigate("/", { replace: true });
   }
 
-  async function openView(id) {
-    setViewOpen(true);
-    setViewLoading(true);
-    setViewError("");
-    setViewData(null);
+  async function viewApplication(id) {
+    setModalOpen(true);
+    setModalLoading(true);
+    setModalError("");
+    setModalData(null);
+    setExpandedVersions({});
 
     try {
-      const res = await fetch(
-        `${API_BASE_URL}/api/applications/my-applications/${id}`,
-        { headers: { Authorization: `Bearer ${authToken}` } }
-      );
+      const response = await fetch(`${API_BASE}/api/applications/my-applications/${id}`, {
+        headers: {
+          Authorization: `Bearer ${authToken}`,
+        },
+      });
 
-      const result = await res.json();
-      if (!res.ok || !result.success) {
-        throw new Error(result.error || "Failed to load application details");
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok || !result?.success) {
+        throw new Error(result?.error || `Failed to load application (${response.status})`);
       }
 
-      setViewData(result);
+      const app = result.application;
+      const versions = result.versions || [];
+
+      const initialExpanded = {};
+      versions.forEach((v) => {
+        if (v.version === app.currentVersion) {
+          initialExpanded[v.version] = true;
+        }
+      });
+
+      setExpandedVersions(initialExpanded);
+      setModalData({
+        application: app,
+        versions,
+      });
     } catch (err) {
-      setViewError(err.message || "Error loading application");
+      console.error(err);
+      setModalError(err?.message || "Failed to load application details.");
     } finally {
-      setViewLoading(false);
+      setModalLoading(false);
     }
   }
+
+  function toggleVersion(versionNumber) {
+    setExpandedVersions((prev) => ({
+      ...prev,
+      [versionNumber]: !prev[versionNumber],
+    }));
+  }
+
+  const stats = useMemo(() => {
+    return {
+      total: applications.length,
+      unreviewed: applications.filter((a) => a.status === "Unreviewed").length,
+      incomplete: applications.filter((a) => a.status === "Incomplete").length,
+      approved: applications.filter((a) => a.status === "Approved").length,
+    };
+  }, [applications]);
 
   return (
     <div className="wsbc-page_applicantindex">
@@ -165,32 +171,36 @@ export default function ApplicantIndex() {
             />
             <h1>My Applications</h1>
             <p className="text-muted">
-              {user ? `Welcome, ${user.displayName || user.email}!` : "Loading..."}
+              {userInfo
+                ? `Welcome, ${userInfo.displayName || userInfo.email}!`
+                : "Loading..."}
             </p>
           </div>
 
           <div>
-            <button onClick={handleLogout} className="btn btn-outline-grey">
+            <button className="btn btn-outline-grey" onClick={handleLogout}>
               <i className="fa fa-sign-out" /> Logout
             </button>
           </div>
         </div>
 
-        {/* Stats */}
         <div className="stats-row_applicantindex">
-          <div className="stat-card_applicantindex stat-unreviewed">
+          <div className="stat-card_applicantindex stat-unreviewed_applicantindex">
             <h3>{stats.unreviewed}</h3>
             <p>Unreviewed</p>
           </div>
-          <div className="stat-card_applicantindex stat-incomplete">
+
+          <div className="stat-card_applicantindex stat-incomplete_applicantindex">
             <h3>{stats.incomplete}</h3>
             <p>Incomplete</p>
           </div>
-          <div className="stat-card_applicantindex stat-approved">
+
+          <div className="stat-card_applicantindex stat-approved_applicantindex">
             <h3>{stats.approved}</h3>
             <p>Approved</p>
           </div>
-          <div className="stat-card_applicantindex stat-total">
+
+          <div className="stat-card_applicantindex stat-total_applicantindex">
             <h3>{stats.total}</h3>
             <p>Total Applications</p>
           </div>
@@ -202,7 +212,6 @@ export default function ApplicantIndex() {
           </Link>
         </div>
 
-        {/* Table */}
         <div className="table-responsive">
           <table className="table table-striped">
             <thead>
@@ -224,10 +233,10 @@ export default function ApplicantIndex() {
                     <i className="fa fa-spinner fa-spin" /> Loading...
                   </td>
                 </tr>
-              ) : tableError ? (
+              ) : error ? (
                 <tr>
                   <td colSpan="7" className="text-center text-danger">
-                    Error: {tableError}
+                    Error: {error}
                   </td>
                 </tr>
               ) : applications.length === 0 ? (
@@ -238,12 +247,7 @@ export default function ApplicantIndex() {
                 </tr>
               ) : (
                 applications.map((app) => {
-                  const statusClass =
-                    app.status === "Unreviewed"
-                      ? "status-unreviewed"
-                      : app.status === "Incomplete"
-                      ? "status-incomplete"
-                      : "status-approved";
+                  const statusClass = `status-${app.status.toLowerCase()}_applicantindex`;
 
                   return (
                     <tr key={app._id}>
@@ -259,13 +263,24 @@ export default function ApplicantIndex() {
                           {app.status}
                         </span>
                       </td>
-                      <td>
+                      <td className="actions-cell_applicantindex">
                         <button
                           className="btn btn-sm btn-blue"
-                          onClick={() => openView(app._id)}
+                          onClick={() => viewApplication(app._id)}
                         >
                           <i className="fa fa-eye" /> View
                         </button>
+
+                        {app.status === "Incomplete" ? (
+                          <button
+                            className="btn btn-sm btn-orange"
+                            onClick={() =>
+                              navigate(`/application-revise?id=${app._id}`)
+                            }
+                          >
+                            <i className="fa fa-upload" /> Revise
+                          </button>
+                        ) : null}
                       </td>
                     </tr>
                   );
@@ -274,83 +289,177 @@ export default function ApplicantIndex() {
             </tbody>
           </table>
         </div>
+      </div>
 
-        {/* View modal */}
-        <Modal
-          title="Application Details"
-          isOpen={viewOpen}
-          onClose={() => setViewOpen(false)}
+      {modalOpen ? (
+        <div
+          className="modal-overlay_applicantindex"
+          onMouseDown={() => setModalOpen(false)}
         >
-          {viewLoading ? (
-            <p>
-              <i className="fa fa-spinner fa-spin" /> Loading...
-            </p>
-          ) : viewError ? (
-            <p className="text-danger">Error: {viewError}</p>
-          ) : viewData ? (
-            <div>
-              <h4>
-                {viewData.application?.applicationId} - {viewData.application?.providerName}
-              </h4>
+          <div
+            className="modal-box_applicantindex"
+            onMouseDown={(e) => e.stopPropagation()}
+          >
+            <div className="modal-header_applicantindex">
+              <h5 className="modal-title_applicantindex">Application Details</h5>
+              <button
+                className="modal-close_applicantindex"
+                onClick={() => setModalOpen(false)}
+              >
+                &times;
+              </button>
+            </div>
 
-              <p>
-                <strong>Organization:</strong> {viewData.application?.organizationName}
-              </p>
-              <p>
-                <strong>Email:</strong> {viewData.application?.email}
-              </p>
-              <p>
-                <strong>Status:</strong> {viewData.application?.status}
-              </p>
-              <p>
-                <strong>Submitted:</strong> {formatDate(viewData.application?.submittedDate)}
-              </p>
-
-              <hr />
-              <h5>Missing Competencies</h5>
-              {viewData.application?.missingCriteria?.length ? (
-                <ul>
-                  {viewData.application.missingCriteria.map((c) => (
-                    <li key={c}>{c}</li>
-                  ))}
-                </ul>
-              ) : (
-                <p className="text-success">All competencies covered!</p>
-              )}
-
-              <hr />
-              <h5>Uploaded Documents</h5>
-              {viewData.pdfFiles?.length ? (
-                <ul>
-                  {viewData.pdfFiles.map((pdf) => (
-                    <li key={pdf.signedUrl}>
-                      <a href={pdf.signedUrl} target="_blank" rel="noreferrer">
-                        {pdf.filename}
-                      </a>
-                    </li>
-                  ))}
-                </ul>
-              ) : (
-                <p className="text-muted">No documents found.</p>
-              )}
-
-              {viewData.filledExcel ? (
-                <>
-                  <hr />
-                  <h5>Curriculum Mapping</h5>
-                  <ul>
-                    <li>
-                      <a href={viewData.filledExcel.signedUrl} target="_blank" rel="noreferrer">
-                        {viewData.filledExcel.filename}
-                      </a>
-                    </li>
-                  </ul>
-                </>
+            <div className="modal-body_applicantindex">
+              {modalLoading ? (
+                <p className="text-center">
+                  <i className="fa fa-spinner fa-spin" /> Loading...
+                </p>
+              ) : modalError ? (
+                <p className="text-danger">{modalError}</p>
+              ) : modalData ? (
+                <ApplicantModalContent
+                  data={modalData}
+                  expandedVersions={expandedVersions}
+                  toggleVersion={toggleVersion}
+                />
               ) : null}
             </div>
-          ) : null}
-        </Modal>
-      </div>
+
+            <div className="modal-footer_applicantindex">
+              <button
+                type="button"
+                className="btn btn-secondary"
+                onClick={() => setModalOpen(false)}
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+function ApplicantModalContent({ data, expandedVersions, toggleVersion }) {
+  const app = data.application;
+  const versions = [...(data.versions || [])].sort((a, b) => b.version - a.version);
+
+  return (
+    <div>
+      <h4>
+        {app.applicationId} - {app.providerName}
+      </h4>
+      <p>
+        <strong>Organization:</strong> {app.organizationName}
+      </p>
+      <p>
+        <strong>Email:</strong> {app.email}
+      </p>
+      <p>
+        <strong>Status:</strong> {app.status}
+      </p>
+      <p>
+        <strong>Submitted:</strong> {formatDate(app.submittedDate)}
+      </p>
+      {app.lastRevised ? (
+        <p>
+          <strong>Last Revised:</strong> {formatDate(app.lastRevised)}
+        </p>
+      ) : null}
+
+      <hr />
+      <h5>Version History</h5>
+
+      {versions.length === 0 ? (
+        <p className="text-muted">No versions available</p>
+      ) : (
+        <div className="accordion_applicantindex">
+          {versions.map((v) => {
+            const isCurrentVersion = v.version === app.currentVersion;
+            const isExpanded = !!expandedVersions[v.version];
+
+            return (
+              <div className="card_applicantindex" key={v.version}>
+                <div className="card-header_applicantindex">
+                  <button
+                    className="btn-link_applicantindex"
+                    type="button"
+                    onClick={() => toggleVersion(v.version)}
+                  >
+                    {isExpanded ? "▼" : "▶"} Version {v.version}{" "}
+                    {isCurrentVersion ? "(Current)" : ""} - {formatDate(v.analyzedAt)}
+                  </button>
+                </div>
+
+                {isExpanded ? (
+                  <div className="card-body_applicantindex">
+                    <h6>Missing Competencies</h6>
+                    {v.missingCriteria && v.missingCriteria.length > 0 ? (
+                      <ul>
+                        {v.missingCriteria.map((c) => (
+                          <li key={c}>{c}</li>
+                        ))}
+                      </ul>
+                    ) : (
+                      <p className="text-success">All competencies covered!</p>
+                    )}
+
+                    <h6>Curriculum Documents</h6>
+                    {v.curriculumFiles && v.curriculumFiles.length > 0 ? (
+                      <ul>
+                        {v.curriculumFiles.map((pdf, index) => (
+                          <li key={`${pdf.filename}-${index}`}>
+                            <a href={pdf.signedUrl} target="_blank" rel="noreferrer">
+                              <i className="fa fa-file-pdf-o" /> {pdf.filename}
+                            </a>
+                          </li>
+                        ))}
+                      </ul>
+                    ) : (
+                      <p className="text-muted">No curriculum files</p>
+                    )}
+
+                    {v.applicationPackageFiles && v.applicationPackageFiles.length > 0 ? (
+                      <>
+                        <h6>Application Package Documents</h6>
+                        <ul>
+                          {v.applicationPackageFiles.map((pkg, index) => (
+                            <li key={`${pkg.filename}-${index}`}>
+                              <a href={pkg.signedUrl} target="_blank" rel="noreferrer">
+                                <i className="fa fa-file-pdf-o" /> {pkg.filename}
+                              </a>{" "}
+                              <span className="text-muted">({pkg.label})</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </>
+                    ) : null}
+
+                    {v.excelFile ? (
+                      <>
+                        <h6>Generated Competency Mapping</h6>
+                        <ul>
+                          <li>
+                            <a
+                              href={v.excelFile.signedUrl}
+                              target="_blank"
+                              rel="noreferrer"
+                            >
+                              <i className="fa fa-file-excel-o" /> {v.excelFile.filename}
+                            </a>
+                          </li>
+                        </ul>
+                      </>
+                    ) : null}
+                  </div>
+                ) : null}
+              </div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }

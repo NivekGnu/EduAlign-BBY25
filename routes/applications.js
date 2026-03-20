@@ -20,8 +20,18 @@ const upload = multer({
 });
 
 // Routes
-router.post('/submit', requireAuth, upload.single('pdf'), applicationController.submitApplication); // submits an applicant's application
-// router.post('/revise/:id', upload.single('pdf'), applicationController.reviseApplication); // may use later -clinton
+// note max number of files is arbitrary. try 10 but may need to modify depending on LLM
+router.post('/analyze', requireAuth, upload.array('pdfs', 10), applicationController.analyzeCurriculum); // analyze uploaded document only (does not save)
+// router.post('/submit', requireAuth, upload.array('pdfs', 10), applicationController.submitApplication);
+router.post('/submit', requireAuth, upload.fields([ // submits an applicant's application
+  { name: 'pdfs', maxCount: 10 },
+  { name: 'applicationPackageFiles', maxCount: 3 }
+]), applicationController.submitApplication);
+// router.post('/revise/:id', requireAuth, upload.array('pdfs', 10), applicationController.reviseApplication);
+router.post('/revise/:id', requireAuth, upload.fields([ // allow applicant to revise existing submitted application
+  { name: 'pdfs', maxCount: 10 },
+  { name: 'applicationPackageFiles', maxCount: 3 }
+]), applicationController.reviseApplication);
 router.get('/my-applications', requireAuth, applicationController.getMyApplications); // allow applicant to view all their applications
 router.get('/my-applications/:id', requireAuth, applicationController.getMyApplicationDetails); // allow applicant to see details about their application
 

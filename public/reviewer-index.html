@@ -13,11 +13,22 @@
     .main-container { max-width: 1400px; margin: 0 auto; background: white; padding: 40px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
     .logo { max-width: 200px; margin-bottom: 30px; }
     #loginSection { max-width: 500px; margin: 100px auto; text-align: center; }
-    /* #dashboardSection { display: none; } */
     .stats-row { display: flex; gap: 20px; margin-bottom: 30px; }
     .stat-card { flex: 1; background: linear-gradient(135deg, #6399AE 0%, #4A7A8A 100%); color: white; padding: 20px; border-radius: 4px; text-align: center; }
     .stat-card h3 { margin: 0; font-size: 36px; font-weight: bold; }
     .stat-card p { margin: 5px 0 0; opacity: 0.9; }
+    /* Accordion styling for version history */
+    .accordion .card { margin-bottom: 10px; border: 1px solid #E4E2E0; }
+    .accordion .card-header { background-color: #F8F8F8; padding: 0; }
+    .accordion .card-header .btn-link { width: 100%; text-align: left; padding: 15px; color: #003366; text-decoration: none; display: block; }
+    .accordion .card-header .btn-link:hover { background-color: #E0EBEF; text-decoration: none; }
+    .accordion .card-body { padding: 20px; background-color: white; }
+    .accordion .card-body h6 { color: #ED8B00; margin-top: 15px; margin-bottom: 10px; }
+    .accordion .card-body h6:first-child { margin-top: 0; }
+    /* Document category styling */
+    .doc-category { margin-top: 10px; }
+    .doc-category-label { font-weight: bold; color: #003366; font-size: 13px; margin-bottom: 5px; }
+    .doc-category ul { margin-bottom: 10px; }
   </style>
 </head>
 <body>
@@ -174,7 +185,7 @@
     tbody.empty();
     
     if (applications.length === 0) {
-      tbody.append('<tr><td colspan="7" class="text-center">No applications</td></tr>');
+      tbody.append('<tr><td colspan="7" class="text-center">No applications yet.</td></tr>');
       return;
     }
     
@@ -236,43 +247,96 @@
   async function viewApplication(id) {
     try {
       const response = await fetch(`/api/reviewer/applications/${id}`, {
-        headers: {
-          'Authorization': `Bearer ${authToken}`
-        }
+        headers: { 'Authorization': `Bearer ${authToken}` }
       });
       
       const result = await response.json();
       if (!result.success) throw new Error(result.error);
       
       const app = result.application;
+      const versions = result.versions || [];
+      
       let html = `
         <h4>${app.applicationId} - ${app.providerName}</h4>
         <p><strong>Organization:</strong> ${app.organizationName}</p>
         <p><strong>Email:</strong> ${app.email}</p>
         <p><strong>Status:</strong> ${app.status}</p>
-        <hr><h5>Missing Competencies</h5>
+        <p><strong>Submitted:</strong> ${formatDate(app.submittedDate)}</p>
+        ${app.lastRevised ? `<p><strong>Last Revised:</strong> ${formatDate(app.lastRevised)}</p>` : ''}
+        ${app.reviewerNotes ? `<p><strong>Reviewer Notes:</strong> ${app.reviewerNotes}</p>` : ''}
+        <hr>
+        <h5>Version History</h5>
       `;
       
-      if (app.missingCriteria && app.missingCriteria.length > 0) {
-        html += '<ul>';
-        app.missingCriteria.forEach(c => html += `<li>${c}</li>`);
-        html += '</ul>';
+      if (versions.length === 0) {
+        html += '<p class="text-muted">No versions available</p>';
       } else {
-        html += '<p class="text-success">All covered!</p>';
-      }
-      
-      html += '<hr><h5>Uploaded Documents</h5>';
-      if (result.pdfFiles && result.pdfFiles.length > 0) {
-        html += '<ul>';
-        result.pdfFiles.forEach(pdf => {
-          html += `<li><a href="${pdf.signedUrl}" target="_blank">${pdf.filename}</a></li>`;
+        html += '<div class="accordion" id="versionAccordion">';
+        
+        // Sort versions in reverse order (newest first)
+        const sortedVersions = [...versions].sort((a, b) => b.version - a.version);
+        
+        sortedVersions.forEach((v, index) => {
+          const isCurrentVersion = v.version === app.currentVersion;
+          const collapseId = `collapse-v${v.version}`;
+          const headingId = `heading-v${v.version}`;
+          const showClass = isCurrentVersion ? 'show' : '';
+          const expandedIcon = isCurrentVersion ? '▼' : '▶';
+          
+          html += `
+            <div class="card">
+              <div class="card-header" id="${headingId}">
+                <h6 class="mb-0">
+                  <button class="btn btn-link" type="button" data-toggle="collapse" data-target="#${collapseId}" aria-expanded="${isCurrentVersion}" aria-controls="${collapseId}">
+                    ${expandedIcon} Version ${v.version} ${isCurrentVersion ? '(Current)' : ''} - ${formatDate(v.analyzedAt)}
+                  </button>
+                </h6>
+              </div>
+              <div id="${collapseId}" class="collapse ${showClass}" aria-labelledby="${headingId}" data-parent="#versionAccordion">
+                <div class="card-body">
+                  <h6>Missing Competencies</h6>
+          `;
+          
+          if (v.missingCriteria && v.missingCriteria.length > 0) {
+            html += '<ul>';
+            v.missingCriteria.forEach(c => html += `<li>${c}</li>`);
+            html += '</ul>';
+          } else {
+            html += '<p class="text-success">All competencies covered!</p>';
+          }
+          
+          // Curriculum Documents section
+          html += '<h6>Curriculum Documents</h6>';
+          if (v.curriculumFiles && v.curriculumFiles.length > 0) {
+            html += '<ul>';
+            v.curriculumFiles.forEach(pdf => {
+              html += `<li><a href="${pdf.signedUrl}" target="_blank"><i class="fa fa-file-pdf-o"></i> ${pdf.filename}</a></li>`;
+            });
+            html += '</ul>';
+          } else {
+            html += '<p class="text-muted">No curriculum files</p>';
+          }
+          
+          // Application Package Documents section
+          if (v.applicationPackageFiles && v.applicationPackageFiles.length > 0) {
+            html += '<h6>Application Package Documents</h6><ul>';
+            v.applicationPackageFiles.forEach(pkg => {
+              html += `<li><a href="${pkg.signedUrl}" target="_blank"><i class="fa fa-file-pdf-o"></i> ${pkg.filename}</a> <span class="text-muted">(${pkg.label})</span></li>`;
+            });
+            html += '</ul>';
+          }
+          
+          // Generated Excel
+          if (v.excelFile) {
+            html += '<h6>Generated Competency Mapping</h6><ul>';
+            html += `<li><a href="${v.excelFile.signedUrl}" target="_blank"><i class="fa fa-file-excel-o"></i> ${v.excelFile.filename}</a></li>`;
+            html += '</ul>';
+          }
+          
+          html += '</div></div></div>';
         });
-        html += '</ul>';
-      }
-      
-      if (result.filledExcel) {
-        html += `<hr><h5>Curriculum Mapping</h5>`;
-        html += `<ul><li><a href="${result.filledExcel.signedUrl}" target="_blank">${result.filledExcel.filename}</a></li></ul>`;
+        
+        html += '</div>';
       }
       
       $('#modalContent').html(html);

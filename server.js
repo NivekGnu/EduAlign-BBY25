@@ -77,7 +77,6 @@ app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'landing.html'));  // 
 });
 
-
 // reviewer.html; WorkSafeBC reviewer dashboard to review applications
 app.get('/reviewer', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'reviewer-index.html'));

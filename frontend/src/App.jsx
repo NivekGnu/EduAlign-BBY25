@@ -5,6 +5,7 @@ import Login from "./pages/Login.jsx";
 import Signup from "./pages/Signup.jsx";
 import ApplicantIndex from "./pages/ApplicantIndex.jsx";
 import ReviewerIndex from "./pages/ReviewerIndex.jsx";
+import ApplicationRevise from "./pages/ApplicationRevise.jsx";
 import Application from "./pages/Application.jsx";
 import NotFound from "./pages/NotFound.jsx";
 
@@ -23,6 +24,7 @@ export default function App() {
 
         {/* Application detail/form */}
         <Route path="/application" element={<Application />} />
+        <Route path="/application-revise" element={<ApplicationRevise />} />
 
         {/* Backwards compatibility (if anyone bookmarks old paths) */}
         <Route path="/landing.html" element={<Navigate to="/" replace />} />

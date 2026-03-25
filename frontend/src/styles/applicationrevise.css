@@ -1,0 +1,17 @@
+.wsbc-page_revise {
+  background-color: #f1f0ef;
+  padding: 20px;
+  min-height: 100vh;
+}
+
+.main-container_revise {
+  max-width: 900px;
+  margin: 0 auto;
+  background: white;
+  padding: 40px;
+}
+
+.logo_revise {
+  max-width: 200px;
+  margin-bottom: 20px;
+}

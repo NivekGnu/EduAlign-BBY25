@@ -1,0 +1,4 @@
+/* App.css - keep minimal; page CSS controls layout */
+#root {
+  min-height: 100vh;
+}

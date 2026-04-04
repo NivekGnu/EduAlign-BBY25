@@ -1,0 +1,278 @@
+.wsbc-page_applicationrevise {
+  background-color: #f1f0ef;
+  padding: 20px 0;
+  min-height: 100vh;
+}
+
+.main-container_applicationrevise {
+  max-width: 1140px;
+  margin: 0 auto;
+  background: white;
+  padding: 40px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  text-align: left;
+}
+
+.logo_applicationrevise {
+  display: block;
+  max-width: 200px;
+  margin: 0 0 30px 0;
+}
+
+.alert-warning_applicationrevise {
+  background-color: #f9e0a0;
+  border-left: 4px solid #f1be48;
+  padding: 20px;
+  margin: 20px 0;
+}
+
+.alert-info_applicationrevise {
+  background-color: #e0ebef;
+  border-left: 4px solid #6399ae;
+  padding: 15px;
+  margin-bottom: 20px;
+}
+
+.form-section_applicationrevise {
+  margin-bottom: 30px;
+  padding-bottom: 30px;
+  border-bottom: 1px solid #e4e2e0;
+}
+
+.form-section_applicationrevise:last-child {
+  border-bottom: none;
+}
+
+.loading-spinner_applicationrevise {
+  text-align: center;
+  padding: 40px;
+}
+
+.spinner_applicationrevise {
+  border: 4px solid #e4e2e0;
+  border-top: 4px solid #ed8b00;
+  border-radius: 50%;
+  width: 50px;
+  height: 50px;
+  animation: spin_applicationrevise 1s linear infinite;
+  margin: 0 auto 20px;
+}
+
+@keyframes spin_applicationrevise {
+  0% {
+    transform: rotate(0deg);
+  }
+
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+.file-upload-area_applicationrevise {
+  border: 2px dashed #c9c5c1;
+  padding: 30px;
+  text-align: center;
+  border-radius: 4px;
+  background: #fafafa;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.file-upload-area_applicationrevise:hover,
+.file-upload-area_applicationrevise.dragover_applicationrevise {
+  border-color: #ed8b00;
+  background: #fff9f0;
+}
+
+.file-list_applicationrevise {
+  margin-top: 15px;
+}
+
+.file-item_applicationrevise {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px;
+  background: #e0ebef;
+  border-radius: 4px;
+  margin-bottom: 5px;
+  gap: 12px;
+}
+
+.file-item-remove_applicationrevise {
+  cursor: pointer;
+  color: #d32f2f;
+  font-weight: bold;
+  white-space: nowrap;
+}
+
+.success-message_applicationrevise {
+  background-color: #e7e8d6;
+  border-left: 4px solid #888d30;
+  padding: 20px;
+  margin: 20px 0;
+}
+
+.missing-criteria_applicationrevise {
+  background-color: #f9e0a0;
+  border-left: 4px solid #f1be48;
+  padding: 20px;
+  margin: 20px 0;
+}
+
+.analysis-results_applicationrevise {
+  background-color: #e0ebef;
+  border-left: 4px solid #6399ae;
+  padding: 20px;
+  margin: 20px 0;
+}
+
+.btn-group_applicationrevise {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+/* progress */
+.progress-container_applicationrevise {
+  max-width: 600px;
+  margin: 0 auto 40px;
+  padding: 20px 0;
+}
+
+.progress-steps_applicationrevise {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  position: relative;
+}
+
+.progress-steps_applicationrevise::before {
+  content: "";
+  position: absolute;
+  top: 20px;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: #e4e2e0;
+  z-index: 0;
+}
+
+.progress-step_applicationrevise {
+  position: relative;
+  z-index: 1;
+  text-align: center;
+  flex: 1;
+}
+
+.step-circle_applicationrevise {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: #e4e2e0;
+  color: #666;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 10px;
+  font-weight: bold;
+  border: 3px solid white;
+}
+
+.progress-step_applicationrevise.active_applicationrevise .step-circle_applicationrevise {
+  background: #ed8b00;
+  color: white;
+}
+
+.progress-step_applicationrevise.completed_applicationrevise .step-circle_applicationrevise {
+  background: #888d30;
+  color: white;
+}
+
+.step-label_applicationrevise {
+  font-size: 14px;
+  color: #666;
+}
+
+.progress-step_applicationrevise.active_applicationrevise .step-label_applicationrevise {
+  color: #ed8b00;
+  font-weight: bold;
+}
+
+.progress-step_applicationrevise.completed_applicationrevise .step-label_applicationrevise {
+  color: #888d30;
+}
+
+.info-box_applicationrevise {
+  background-color: #e0ebef;
+  border-left: 4px solid #6399ae;
+  padding: 20px;
+  margin: 15px 0;
+}
+
+.info-box_applicationrevise h4 {
+  color: #003366;
+  margin-top: 0;
+}
+
+.info-box_applicationrevise ul {
+  margin-bottom: 0;
+  padding-left: 20px;
+}
+
+.info-box_applicationrevise ul li {
+  margin-bottom: 8px;
+  line-height: 1.6;
+}
+
+.upload-label_applicationrevise {
+  font-weight: bold;
+  color: #003366;
+  margin-bottom: 5px;
+  display: block;
+}
+
+.upload-description_applicationrevise {
+  color: #6b6b6b;
+  font-size: 14px;
+  margin-bottom: 5px;
+}
+
+.upload-icon_applicationrevise {
+  color: #6399ae;
+}
+
+.analysisSection_applicationrevise,
+.applicationPackageSection_applicationrevise,
+.resultsSection_applicationrevise,
+.missingCriteriaSection_applicationrevise {
+  display: block;
+}
+
+@media (max-width: 768px) {
+  .main-container_applicationrevise {
+    padding: 24px;
+  }
+
+  .btn-group_applicationrevise {
+    flex-direction: column;
+  }
+
+  .file-item_applicationrevise {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .progress-steps_applicationrevise::before {
+    display: none;
+  }
+
+  .progress-steps_applicationrevise {
+    gap: 12px;
+  }
+
+  .step-label_applicationrevise {
+    font-size: 12px;
+  }
+}

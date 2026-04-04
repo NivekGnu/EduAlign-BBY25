@@ -3,16 +3,19 @@ const { getSignedUrl } = require('../utils/firebaseStorage');
 
 /**
  * Get all applications for reviewer dashboard
+ * Excludes Draft applications (incomplete submissions)
  */
 exports.getApplications = async (req, res) => {
   try {
     const applications = await getAllApplications();
+    // Filter out Draft applications - reviewers should only see submitted ones
+    const submittedApplications = applications.filter(app => app.status !== 'Draft');
     const stats = await getStats();
     
     res.json({
       success: true,
       stats,
-      applications
+      applications: submittedApplications
     });
     
   } catch (error) {
@@ -78,6 +81,7 @@ exports.updateStatus = async (req, res) => {
 
 /**
  * Get full application details with signed URLs for downloads
+ * Includes curriculum files, package files, and Excel files
  */
 exports.getApplicationDetails = async (req, res) => {
   try {
@@ -91,25 +95,53 @@ exports.getApplicationDetails = async (req, res) => {
       });
     }
 
-    // Generate signed URLs for all PDF versions
-    const pdfFiles = await Promise.all(
-      application.pdfFiles.map(async (file, index) => ({
-        version: index + 1,
-        filename: file.filename,
-        uploadedAt: file.uploadedAt,
-        signedUrl: await getSignedUrl(file.storagePath, 1) // 1 day
-      }))
-    );
+    // Generate signed URLs for all versions
+    const versions = await Promise.all(
+      (application.versions || []).map(async (version) => {
+        const versionData = {
+          version: version.version,
+          analyzedAt: version.analyzedAt,
+          missingCriteria: version.missingCriteria || [],
+          mappings: version.mappings || []
+        };
 
-    // Signed URL for filled Excel (if generated)
-    let filledExcel = null;
-    if (application.filledExcel?.storagePath) {
-      filledExcel = {
-        filename: application.filledExcel.filename,
-        generatedAt: application.filledExcel.generatedAt,
-        signedUrl: await getSignedUrl(application.filledExcel.storagePath, 1)
-      };
-    }
+        // Add signed URLs for all PDFs
+        if (version.curriculumFiles && version.curriculumFiles.length > 0) {
+          versionData.curriculumFiles = await Promise.all(
+            version.curriculumFiles.map(async (pdf) => ({
+              filename: pdf.filename,
+              uploadedAt: pdf.uploadedAt,
+              fileIndex: pdf.fileIndex || 1,
+              signedUrl: await getSignedUrl(pdf.storagePath, 1)
+            }))
+          );
+        }
+        
+        // Signed URLs for package files (application form, course outline, admin docs)
+        if (version.applicationPackageFiles && version.applicationPackageFiles.length > 0) {
+          versionData.applicationPackageFiles = await Promise.all(
+            version.applicationPackageFiles.map(async (pkg) => ({
+              filename: pkg.filename,
+              label: pkg.label || 'Package Document',
+              uploadedAt: pkg.uploadedAt,
+              fileIndex: pkg.fileIndex || 1,
+              signedUrl: await getSignedUrl(pkg.storagePath, 1)
+            }))
+          );
+        }
+
+        // Add signed URL for Excel
+        if (version.excelFile?.storagePath) {
+          versionData.excelFile = {
+            filename: version.excelFile.filename,
+            generatedAt: version.excelFile.generatedAt,
+            signedUrl: await getSignedUrl(version.excelFile.storagePath, 1)
+          };
+        }
+
+        return versionData;
+      })
+    );
 
     res.json({
       success: true,
@@ -124,11 +156,9 @@ exports.getApplicationDetails = async (req, res) => {
         lastRevised: application.lastRevised,
         reviewedDate: application.reviewedDate,
         reviewerNotes: application.reviewerNotes,
-        missingCriteria: application.missingCriteria,
-        // mappings excluded for size, add if needed
+        currentVersion: application.currentVersion || 1
       },
-      pdfFiles,
-      filledExcel
+      versions: versions
     });
   } catch (error) {
     res.status(500).json({

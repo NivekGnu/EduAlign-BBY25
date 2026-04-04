@@ -33,7 +33,7 @@ async function analyzeCurriculum(pdfText, competencies) {
         }
       ],
       model: "llama-3.3-70b-versatile", 
-      temperature: 0.3, //randomness of AI. 0.0 = deterministic, 1.0 = creative. 
+      temperature: 0.0, //randomness of AI. 0.0 = deterministic, 1.0 = creative. 
       max_tokens: 8000, //we are limiting the AI response to 8000 
       response_format: { type: "json_object" } //response format must be JSON
     });
@@ -45,7 +45,7 @@ async function analyzeCurriculum(pdfText, competencies) {
     
     console.log(`Analysis complete`);
     console.log(`Mappings found: ${analysis.mappings ? analysis.mappings.length : 0}`); //validity checking return 0 if mapping not found
-    console.log(`Missing criteria: ${analysis.missing ? analysis.missing.length : 0}`); //validity checking return 0 if mapping not found
+    console.log(`Missing criteria: ${analysis.missingCriteria ? analysis.missingCriteria.length : 0}`); //validity checking return 0 if mapping not found
     
     return analysis; //returns the curriculum analysis 
  
@@ -71,55 +71,78 @@ async function analyzeCurriculum(pdfText, competencies) {
  * @returns {String} Formatted prompt
  */
 function buildPrompt(pdfText, competencies) {
-  //PDF text limited to ~30k characters for Groq
-  const limitedText = pdfText.substring(0, 30000);
+  // Groq free tier has 100k token daily limit
+  const limitedText = pdfText.substring(0, 10000); // temporarily set to 10000 to reduce token consumption for Groq
   
   //loops through the array, numbers, and joins them. 
   const competencyList = competencies.map((c, i) => 
     `${i + 1}. ${c.text}`
   ).join('\n');
   
-  return `You are analyzing a training course curriculum document to map it to WorkSafeBC asbestos abatement training competencies (Level 1 Certification).
+  return `You are analyzing training course curriculum documents to map them to WorkSafeBC asbestos abatement training competencies (Level 1 Certification).
 
-**COURSE CONTENT:**
+**COURSE CONTENTS:**
+(Multiple files may be provided. Each file is separated by "========== FILE: filename ==========" markers)
 ${limitedText}
 
 **COMPETENCIES TO MAP:**
 ${competencyList}
 
 **YOUR TASK:**
-For each competency, identify:
-1. WHERE in the course material this competency is covered (specific section, page number, or resource name)
-2. HOW it is taught (lecture, demonstration, hands-on practice, video, discussion, case study, or other)
-3. HOW it is assessed (written exam, practical test, quiz, observation, project/assignment, other, or not assessed)
+Analyze which competencies are covered in the course material.
 
-If a competency is NOT adequately covered in the course material, mark it as MISSING.
+**For COVERED competencies, provide:**
+1. WHERE: Include the resource/document name and page number(s) if applicable
+2. HOW TAUGHT: Select EXACTLY ONE from these 5 options:
+   - In-class: Instructor Presentation
+   - Online: Resource Material
+   - In-class: Demonstration
+   - Online: Demonstration
+   - Participant Activity
+3. HOW ASSESSED: Select EXACTLY ONE from these 4 options:
+   - In-class: Quiz
+   - Online: Quiz
+   - In-class: Practical Skills Observation
+   - N / A
+
+**For MISSING/NOT COVERED competencies:**
+- Do NOT include in mappings
+- List in missingCriteria with reason (e.g., "not found" or "insufficiently covered")
 
 **RESPOND WITH ONLY THIS JSON FORMAT (pure JSON, no markdown):**
 {
   "mappings": [
     {
       "competencyIndex": 1,
-      "where": "Section 2.3, Pages 45-47; Training Video Module 3",
-      "howTaught": "Lecture and Video",
-      "howAssessed": "Written exam and Quiz"
+      "where": "Asbestos Awareness Waste Handling and Disposal Level 1 PDF, Pages 19-22",
+      "howTaught": "In-class: Instructor Presentation",
+      "howAssessed": "In-class: Quiz"
+    },
+    {
+      "competencyIndex": 2,
+      "where": "Student Workbook",
+      "howTaught": "Online: Resource Material",
+      "howAssessed": "Online: Quiz"
     }
   ],
-  "missing": [
-    "Competency #5: Describe the abatement process - not found in curriculum"
+  "missingCriteria": [
+    "Competency #5: Describe the abatement process - not found in curriculum",
+    "Competency #12: External expertise requirements - insufficiently covered"
   ]
 }
 
-**IMPORTANT RULES:**
-- Be specific about locations (page numbers, section names, module titles)
-- Only mark as MISSING if truly absent or insufficiently covered
-- Return ONLY valid JSON, no explanatory text
-- Include ALL competencies in either mappings or missing`;
+**CRITICAL RULES:**
+- Only include covered competencies in "mappings"
+- Missing competencies go ONLY in "missingCriteria"
+- Every competency must appear in either mappings OR missingCriteria (not both)
+- Match capitalization and spacing EXACTLY for howTaught and howAssessed
+- WHERE must include the filename (from FILE markers) and page numbers when available
+- Return ONLY valid JSON, no explanatory text`;
 }
 
 /**
  * Get ALL Level 1 competencies with accurate rowIndex from the template
- * Row numbers are 1-based from the Excel sheet.
+ * Note row numbers are 1-based in the Excel sheet.
  * Only includes actual competency rows (skips headers like section titles).
  */
 function getLevel1Competencies() {

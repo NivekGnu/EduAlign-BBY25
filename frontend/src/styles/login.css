@@ -1,0 +1,46 @@
+/* Login page only */
+
+.wsbc-page_login-page {
+  background-color: #f1f0ef;
+  min-height: 100vh;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  padding: 40px 0;
+}
+
+.main-container_login-page {
+  max-width: 500px;
+  width: 100%;
+  margin: 0 16px;
+  background: white;
+  padding: 40px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.logo {
+  max-width: 200px;
+  margin: 0 auto 30px;
+  display: block;
+}
+
+.alert {
+  padding: 15px;
+  margin-bottom: 20px;
+  border-radius: 4px;
+}
+
+.alert-error {
+  background-color: #f9e0a0;
+  border-left: 4px solid #f1be48;
+}
+
+.alert-success {
+  background-color: #e7e8d6;
+  border-left: 4px solid #888d30;
+}
+
+.login-links {
+  text-align: center;
+  margin-top: 20px;
+}

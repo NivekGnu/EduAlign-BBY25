@@ -1,0 +1,47 @@
+/* Signup page only */
+
+.wsbc-page_signup {
+  background-color: #f1f0ef;
+  min-height: 100vh;
+
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+
+  padding: 40px 0;
+}
+
+.main-container_signup {
+  max-width: 600px;
+  width: 100%;
+  margin: 0 auto;
+
+  background: white;
+  padding: 40px;
+
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+.logo_signup {
+  max-width: 200px;
+  margin: 0 auto 30px;
+  display: block;
+}
+
+/* Alert styles */
+.alert_signup {
+  padding: 15px;
+  margin-bottom: 20px;
+  border-radius: 4px;
+}
+
+.alert-error_signup {
+  background-color: #f9e0a0;
+  border-left: 4px solid #f1be48;
+}
+
+/* Bottom links */
+.signup-links {
+  text-align: center;
+  margin-top: 20px;
+}

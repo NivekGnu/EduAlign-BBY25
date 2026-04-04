@@ -78,6 +78,44 @@ async function uploadToStorage(fileBuffer, filename, applicationId) {
 }
 
 /**
+ * Upload multiple files to Firebase Storage
+ * @param {Array<Buffer>} fileBuffers - Array of file buffers
+ * @param {Array<String>} filenames - Array of original filenames
+ * @param {String} applicationId - Application ID for folder structure
+ * @returns {Promise<Array<Object>>} Array of upload results
+ * 
+ * Flow:
+ * Takes arrays of buffers and filenames
+ * Creates an array of upload promises (one for each file)
+ * Uses Promise.all() to upload all files concurrently (faster than one-by-one)
+ * Returns array of results with storage paths and URLs for each file
+ * eg.
+ * [
+ *   { storagePath: "...", publicUrl: "...", filename: "curriculum.pdf" },
+ *   { storagePath: "...", publicUrl: "...", filename: "workbook.pdf" },
+ *   // etc.
+ * ]
+ */
+async function uploadMultipleToStorage(fileBuffers, filenames, applicationId) {
+  try {
+    console.log(`Uploading ${fileBuffers.length} files to Firebase Storage...`);
+    
+    const uploadPromises = fileBuffers.map((buffer, index) => {
+      return uploadToStorage(buffer, filenames[index], applicationId);
+    });
+    
+    const results = await Promise.all(uploadPromises);
+    
+    console.log(`All ${results.length} files uploaded successfully`);
+    
+    return results;
+  } catch (error) {
+    console.error('Multiple file upload error:', error);
+    throw new Error(`Failed to upload multiple files: ${error.message}`);
+  }
+}
+
+/**
  * Get file from Firebase Storage
  * @param {String} storagePath - Storage path
  * @returns {Promise<Buffer>} File buffer
@@ -160,6 +198,7 @@ async function listFiles(applicationId) {
 
 module.exports = {
   uploadToStorage,
+  uploadMultipleToStorage,
   getFromStorage,
   getSignedUrl,
   deleteFromStorage,

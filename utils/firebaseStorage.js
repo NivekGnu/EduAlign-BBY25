@@ -1,15 +1,17 @@
-// Handles Firebase File Storage: upload to storage, download as buffer, remove from storage, signed URL generation, and listing all files for an application
-// Wrapper functions for Firebase Cloud Storage operations.
-//
-// File organization structure:
-// applications/{applicationId}/{timestamp}_{filename}
-//
-// Supported operations:
-// - Upload files (PDFs, Excel) with automatic content type detection
-// - Download files as buffers
-// - Generate signed URLs for temporary access
-// - Delete files
-// - List all files for an application
+/**
+ * @fileoverview Firebase Storage Wrapper
+ * 
+ * Provides wrapper functions for Firebase Cloud Storage operations:
+ * - Upload files (PDFs, Excel) with automatic content type detection
+ * - Download files as buffers
+ * - Generate signed URLs for temporary access (default 7 days, configurable)
+ * - Delete files
+ * - List all files for an application
+ * 
+ * File organization structure:
+ * applications/{applicationId}/{timestamp}_{filename}
+ */
+
 const { storage } = require('./firebase');
 let uuidv4; // UUID generator for file access tokens
 
@@ -20,19 +22,20 @@ let uuidv4; // UUID generator for file access tokens
 })();
 
 /**
- * Upload file to Firebase Storage
- * @param {Buffer} fileBuffer - File buffer
- * @param {String} filename - Original filename
- * @param {String} applicationId - Application ID for folder structure
- * @returns {Promise<Object>} Upload result with path and URL
+ * Upload single file to Firebase Storage.
+ * Auto-detects content type based on file extension (.pdf or .xlsx).
+ * 
+ * @param {Buffer} fileBuffer - File contents as buffer
+ * @param {string} filename - Original filename
+ * @param {string} applicationId - Application ID for folder structure
+ * @returns {Promise<{storagePath: string, publicUrl: string, filename: string}>} Upload result
+ * @throws {Error} Firebase Storage upload failure
  */
 async function uploadToStorage(fileBuffer, filename, applicationId) {
   try {
     // Generate unique storage path with timestamp
     const timestamp = Date.now();
     const storagePath = `applications/${applicationId}/${timestamp}_${filename}`;
-    
-    // Get reference to file in storage bucket
     const file = storage.file(storagePath);
     
     // Determine content type based on file extension
@@ -63,7 +66,7 @@ async function uploadToStorage(fileBuffer, filename, applicationId) {
     
     // Get public URL
     const publicUrl = `https://storage.googleapis.com/${storage.name}/${storagePath}`;
-    
+  
     console.log(`Upload successful: ${storagePath}`);
     
     return {
@@ -78,23 +81,14 @@ async function uploadToStorage(fileBuffer, filename, applicationId) {
 }
 
 /**
- * Upload multiple files to Firebase Storage
- * @param {Array<Buffer>} fileBuffers - Array of file buffers
- * @param {Array<String>} filenames - Array of original filenames
- * @param {String} applicationId - Application ID for folder structure
- * @returns {Promise<Array<Object>>} Array of upload results
+ * Upload multiple files to Firebase Storage concurrently.
+ * Faster than sequential uploads via Promise.all().
  * 
- * Flow:
- * Takes arrays of buffers and filenames
- * Creates an array of upload promises (one for each file)
- * Uses Promise.all() to upload all files concurrently (faster than one-by-one)
- * Returns array of results with storage paths and URLs for each file
- * eg.
- * [
- *   { storagePath: "...", publicUrl: "...", filename: "curriculum.pdf" },
- *   { storagePath: "...", publicUrl: "...", filename: "workbook.pdf" },
- *   // etc.
- * ]
+ * @param {Array<Buffer>} fileBuffers - Array of file buffers
+ * @param {Array<string>} filenames - Array of original filenames
+ * @param {string} applicationId - Application ID for folder structure
+ * @returns {Promise<Array<{storagePath: string, publicUrl: string, filename: string}>>} Array of upload results
+ * @throws {Error} Firebase Storage upload failure for any file
  */
 async function uploadMultipleToStorage(fileBuffers, filenames, applicationId) {
   try {
@@ -116,9 +110,11 @@ async function uploadMultipleToStorage(fileBuffers, filenames, applicationId) {
 }
 
 /**
- * Get file from Firebase Storage
- * @param {String} storagePath - Storage path
- * @returns {Promise<Buffer>} File buffer
+ * Download file from Firebase Storage.
+ * 
+ * @param {string} storagePath - Full storage path (e.g., "applications/APP123/file.pdf")
+ * @returns {Promise<Buffer>} File contents as buffer
+ * @throws {Error} Firebase Storage download failure or file not found
  */
 async function getFromStorage(storagePath) {
   try {
@@ -136,10 +132,13 @@ async function getFromStorage(storagePath) {
 }
 
 /**
- * Generate signed URL for temporary access (valid for 7 days)
- * @param {String} storagePath - Storage path
- * @param {Number} expiresInDays - Expiration in days (default 7)
- * @returns {Promise<String>} Signed URL
+ * Generate signed URL for temporary file access.
+ * URLs expire after specified days and must be regenerated.
+ * 
+ * @param {string} storagePath - Full storage path
+ * @param {number} [expiresInDays=7] - Expiration in days (default 7)
+ * @returns {Promise<string>} Signed URL valid for specified duration
+ * @throws {Error} Signed URL generation failure
  */
 async function getSignedUrl(storagePath, expiresInDays = 7) {
   try {
@@ -158,8 +157,11 @@ async function getSignedUrl(storagePath, expiresInDays = 7) {
 }
 
 /**
- * Delete file from Firebase Storage
- * @param {String} storagePath - Storage path
+ * Delete file from Firebase Storage.
+ * 
+ * @param {string} storagePath - Full storage path
+ * @returns {Promise<void>}
+ * @throws {Error} Firebase Storage deletion failure
  */
 async function deleteFromStorage(storagePath) {
   try {
@@ -173,9 +175,11 @@ async function deleteFromStorage(storagePath) {
 }
 
 /**
- * List all files for an application
- * @param {String} applicationId - Application ID
- * @returns {Promise<Array>} List of files
+ * List all files for an application.
+ * 
+ * @param {string} applicationId - Application ID
+ * @returns {Promise<Array<{path: string, name: string, size: number, contentType: string, created: string}>>} File list with metadata
+ * @throws {Error} Firebase Storage list operation failure
  */
 async function listFiles(applicationId) {
   try {

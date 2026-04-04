@@ -1,9 +1,20 @@
-// Handles authentication logic
+/**
+ * @fileoverview Authentication Controller
+ * 
+ * Manages user role assignment via Firebase custom claims.
+ * Default role is "applicant". To promote to "reviewer", use utils/manageRole.js script.
+ */
 
 const { admin } = require('../utils/firebase');
 
-// sets the user role in firebase custom claims
-// by default, the role is 'applicant' instead of 'reviewer'
+/**
+ * Set user role to "applicant" (default for new users).
+ * 
+ * @param {string} req.body.uid - Firebase user UID
+ * @returns {{ success: boolean, role: string }} Success response with assigned role
+ * @throws {400} UID not provided
+ * @throws {500} Firebase Auth operation failure
+ */
 exports.setUserRole = async (req, res) => {
   try {
     const { uid } = req.body;

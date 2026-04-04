@@ -367,11 +367,6 @@ function ReviewerModalContent({ data, expandedVersions, toggleVersion }) {
           <strong>Last Revised:</strong> {formatDate(app.lastRevised)}
         </p>
       ) : null}
-      {app.reviewerNotes ? (
-        <p>
-          <strong>Reviewer Notes:</strong> {app.reviewerNotes}
-        </p>
-      ) : null}
 
       <hr />
       <h5>Version History</h5>

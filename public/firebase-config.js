@@ -1,5 +1,17 @@
-// Initializes Firebase Admin SDK for client-side
-// allows users to sign up, log in, log out, get authentication tokens
+/**
+ * @fileoverview Firebase Client SDK Configuration
+ * 
+ * Initializes Firebase SDK for client-side (browser) operations:
+ * - User authentication (sign up, log in, log out)
+ * - ID token generation for API requests
+ * - Firebase Auth state management
+ * 
+ * Note: This is the CLIENT-side config (uses apiKey).
+ * Server-side uses firebase.js with Admin SDK (uses service account).
+ * 
+ * Security: API keys in client-side code are safe - they identify the project,
+ * not authenticate users. Actual security enforced by Firebase Security Rules.
+ */
 
 const firebaseConfig = {
   apiKey: "AIzaSyB5NOkb1AcoAW3oKj7IzJWNIVvXoJSAPjk", 

@@ -1,9 +1,28 @@
-// Handles Firestore: CRUD for database (NoSQL)
+/**
+ * @fileoverview Firestore Database Service
+ * 
+ * Handles all Firestore database operations for application records.
+ * Implements versioning system where each application can have multiple versions
+ * (original submission + revisions), preserving complete history.
+ * 
+ * Database schema:
+ * - Collection: "applications"
+ * - Documents contain: userId, providerName, organizationName, email, status,
+ *   submittedDate, currentVersion, versions[] array, timestamps
+ * - Each version contains: curriculumFiles, applicationPackageFiles, excelFile,
+ *   mappings, missingCriteria, analyzedAt
+ */
 
 const { db, FieldValue } = require('./firebase');
 
 /**
- * Generate application ID from date and Firestore doc ID
+ * Generate human-readable application ID from date and Firestore doc ID.
+ * Format: APP{YYYYMMDD}{4-char-uppercase-id}
+ * Example: APP20250403ABCD
+ * 
+ * @param {string} docId - Firestore document ID
+ * @param {FirebaseFirestore.Timestamp} createdAt - Creation timestamp
+ * @returns {string} Human-readable application ID
  */
 function generateApplicationId(docId, createdAt) {
   const date = createdAt.toDate();
@@ -15,10 +34,10 @@ function generateApplicationId(docId, createdAt) {
 }
 
 /**
- * Create new application record in Firestore with versions structure
+ * Create new application record with version 1.
  * 
- * Process:
- * 1. Add document to 'applications' collection with data
+ * Workflow:
+ * 1. Add document to 'applications' collection
  * 2. Auto-generate createdAt and updatedAt timestamps
  * 3. Retrieve created document to get its ID
  * 4. Generate human-readable applicationId
@@ -26,23 +45,22 @@ function generateApplicationId(docId, createdAt) {
  * 6. Return complete application object
  * 
  * @param {Object} data - Initial application data
- * @param {String} data.providerName - Name of person submitting
- * @param {String} data.organizationName - Training organization name
- * @param {String} data.email - Contact email
- * @param {String} data.status - Initial status (typically "Unreviewed")
+ * @param {string} [data.userId] - Firebase UID of user creating application
+ * @param {string} data.providerName - Name of person submitting
+ * @param {string} data.organizationName - Training organization name
+ * @param {string} data.email - Contact email
+ * @param {string} [data.status="Unreviewed"] - Initial status
  * @param {Date} data.submittedDate - Submission date
- * @param {Array} data.curriculumFiles - PDF file metadata for version 1
- * @param {Object} data.excelFile - Excel file metadata for version 1
+ * @param {Array} [data.curriculumFiles=[]] - Curriculum file metadata for version 1
+ * @param {Array} [data.applicationPackageFiles=[]] - Package file metadata for version 1
+ * @param {Object} [data.excelFile=null] - Excel file metadata for version 1
  * @param {Array} [data.mappings=[]] - Competency mappings for version 1
  * @param {Array} [data.missingCriteria=[]] - Missing competencies for version 1
- * 
  * @returns {Promise<Object>} Created application with generated IDs
- * 
- * @throws {Error} If Firestore operation fails
+ * @throws {Error} Firestore operation failure
  */
 async function createApplication(data) {
   try {
-    // Build version 1 object
     const version1 = {
       version: 1,
       analyzedAt: new Date(),
@@ -69,7 +87,6 @@ async function createApplication(data) {
     // Get the created document to generate application ID
     const doc = await docRef.get();
     const docData = doc.data();
-    
     const applicationId = generateApplicationId(doc.id, docData.createdAt);
     
     // Update with applicationId
@@ -88,13 +105,11 @@ async function createApplication(data) {
 }
 
 /**
- * Retrieve single application by Firestore document ID
+ * Retrieve single application by Firestore document ID.
  * 
- * @param {String} id - Firestore document ID
- * 
+ * @param {string} id - Firestore document ID
  * @returns {Promise<Object|null>} Application object or null if not found
- * 
- * @throws {Error} If Firestore operation fails
+ * @throws {Error} Firestore operation failure
  */
 async function getApplicationById(id) {
   try {
@@ -116,17 +131,14 @@ async function getApplicationById(id) {
 }
 
 /**
- * Update existing application
- * 
+ * Update existing application.
  * Automatically updates the 'updatedAt' timestamp.
  * Only updates fields provided in data parameter.
  * 
- * @param {String} id - Firestore document ID
- * @param {Object} data - Fields to update
- * 
+ * @param {string} id - Firestore document ID
+ * @param {Object} data - Fields to update (partial update supported)
  * @returns {Promise<Object>} Updated application object
- * 
- * @throws {Error} If document doesn't exist or update fails
+ * @throws {Error} Document doesn't exist or update fails
  */
 async function updateApplication(id, data) {
   try {
@@ -143,19 +155,18 @@ async function updateApplication(id, data) {
 }
 
 /**
- * Add a new revision (version) to an existing application
+ * Add new revision (version) to existing application.
+ * Increments currentVersion and preserves all previous versions.
  * 
- * @param {String} id - Firestore document ID
+ * @param {string} id - Firestore document ID
  * @param {Object} revisionData - New version data
  * @param {Array} revisionData.curriculumFiles - Curriculum file metadata
- * @param {Array} revisionData.applicationPackageFiles - Application package file metadata
+ * @param {Array} revisionData.applicationPackageFiles - Package file metadata
  * @param {Object} revisionData.excelFile - Excel file metadata
  * @param {Array} revisionData.missingCriteria - Missing competencies
  * @param {Array} revisionData.mappings - Competency mappings
- * 
  * @returns {Promise<Object>} Updated application object
- * 
- * @throws {Error} If document doesn't exist or update fails
+ * @throws {Error} Document doesn't exist or update fails
  */
 async function addRevision(id, revisionData) {
   try {
@@ -196,21 +207,14 @@ async function addRevision(id, revisionData) {
 }
 
 /**
- * Get all applications with optional filtering
- * 
- * Supports filtering by:
- * - status: "Unreviewed", "Incomplete", or "Approved"
- * - email: Provider email address
- * 
- * Results are sorted by submission date (newest first).
+ * Get all applications with optional filtering.
+ * Results sorted by submission date (newest first).
  * 
  * @param {Object} [filters={}] - Optional filter criteria
- * @param {String} [filters.status] - Filter by application status
- * @param {String} [filters.email] - Filter by provider email
- * 
- * @returns {Promise<Array>} Array of application objects
- * 
- * @throws {Error} If Firestore operation fails
+ * @param {string} [filters.status] - Filter by status ("Unreviewed"|"Incomplete"|"Approved")
+ * @param {string} [filters.email] - Filter by provider email
+ * @returns {Promise<Array<Object>>} Array of application objects
+ * @throws {Error} Firestore operation failure
  */
 async function getAllApplications(filters = {}) {
   try {
@@ -246,18 +250,16 @@ async function getAllApplications(filters = {}) {
   }
 }
 
+
 /**
- * Delete application (admin operation)
- * 
+ * Delete application (admin operation).
  * Permanently removes application document from Firestore.
- * Note: This does NOT delete associated files from Cloud Storage.
+ * Note: Does NOT delete associated files from Cloud Storage.
  * For complete deletion, files should be deleted separately.
  * 
- * @param {String} id - Firestore document ID
- * 
- * @returns {Promise<Boolean>} True if successful
- * 
- * @throws {Error} If deletion fails
+ * @param {string} id - Firestore document ID
+ * @returns {Promise<boolean>} True if successful
+ * @throws {Error} Deletion failure
  */
 async function deleteApplication(id) {
   try {
@@ -269,21 +271,16 @@ async function deleteApplication(id) {
   }
 }
 
+
 /**
- * Get application statistics for reviewer dashboard
- * 
- * Counts applications by status:
+ * Get application statistics for reviewer dashboard.
+ * Counts applications by status.
  * - Unreviewed: Newly submitted, awaiting review
  * - Incomplete: Missing competencies, needs revision
  * - Approved: Fully approved applications
  * 
- * @returns {Promise<Object>} Statistics object
- * @returns {Number} return.total - Total number of applications
- * @returns {Number} return.unreviewed - Count of unreviewed applications
- * @returns {Number} return.incomplete - Count of incomplete applications
- * @returns {Number} return.approved - Count of approved applications
- * 
- * @throws {Error} If Firestore operation fails
+ * @returns {Promise<{total: number, unreviewed: number, incomplete: number, approved: number}>} Statistics object
+ * @throws {Error} Firestore operation failure
  */
 async function getStats() {
   try {
@@ -301,7 +298,7 @@ async function getStats() {
     });
     
     return {
-      total: unreviewed + incomplete + approved, // Exclude drafts from total
+      total: unreviewed + incomplete + approved,
       unreviewed,
       incomplete,
       approved

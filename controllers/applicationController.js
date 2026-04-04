@@ -1,3 +1,10 @@
+/**
+ * @fileoverview Application Controller
+ * 
+ * Handles applicant operations: analyzing curriculum, submitting applications, revisions, and retrieval.
+ * Uses AI (Groq) for curriculum analysis, Firebase Storage for files, Firestore for data.
+ */
+
 const { createApplication, updateApplication, getApplicationById, getAllApplications } = require('../utils/firestoreService');
 const { uploadMultipleToStorage, getSignedUrl } = require('../utils/firebaseStorage');
 const { extractTextFromMultiplePDFs, isValidPDF, getFileSizeMB } = require('../utils/pdfParser');
@@ -5,7 +12,22 @@ const { analyzeCurriculum, getLevel1Competencies } = require('../utils/groqAnaly
 const { fillAndUploadLevel1Excel } = require('../utils/excelFiller');
 const fs = require('fs');
 
-// Submit a new application (legacy - kept for compatibility, now creates full application in one step)
+/**
+ * Submit new application with curriculum analysis.
+ * Creates application, uploads files, runs AI analysis, generates Excel.
+ * 
+ * @param {string} req.body.providerName - Name of person submitting
+ * @param {string} req.body.organizationName - Training organization name
+ * @param {string} [req.body.email] - Contact email (optional if authenticated)
+ * @param {string} [req.body.analysisResults] - Pre-analyzed results (JSON, optional)
+ * @param {Array} req.files.pdfs - Curriculum PDFs (max 10)
+ * @param {Array} req.files.applicationPackageFiles - Package files (exactly 3)
+ * @param {string} req.user.uid - User's Firebase UID
+ * @param {string} req.user.email - User's email
+ * @returns {{ success: boolean, applicationId: string, application: Object }} Created application
+ * @throws {400} Missing fields or invalid file count
+ * @throws {500} PDF validation, AI analysis, or database failure
+ */
 exports.submitApplication = async (req, res) => {
   const tempFilePaths = []; 
   
@@ -206,8 +228,15 @@ exports.submitApplication = async (req, res) => {
 };
 
 /**
- * Analyze curriculum without submitting (preview only)
- * No database creation, no Firebase upload
+ * Analyze curriculum without submitting (preview mode).
+ * Runs AI analysis without creating database records or uploading files.
+ * 
+ * @param {string} req.body.providerName - Provider name (for logging)
+ * @param {string} req.body.organizationName - Organization name (for logging)
+ * @param {Array} req.files - Curriculum PDFs (max 10)
+ * @returns {{ success: boolean, analysis: Object }} Analysis results with mappings and missing criteria
+ * @throws {400} Missing fields or no files
+ * @throws {500} PDF validation or AI analysis failure
  */
 exports.analyzeCurriculum = async (req, res) => {
   const tempFilePaths = [];
@@ -298,15 +327,18 @@ exports.analyzeCurriculum = async (req, res) => {
 };
 
 /**
- * Get all applications belonging to applicant only
+ * Get all applications for authenticated user.
+ * 
+ * @param {string} req.user.uid - User's Firebase UID
+ * @returns {{ success: boolean, count: number, applications: Array }} User's applications
+ * @throws {500} Database query failure
  */
 exports.getMyApplications = async (req, res) => {
   try {
     const userId = req.user.uid;
     
     const applications = await getAllApplications();
-    // Filter by user AND exclude Draft status (incomplete applications)
-    const myApplications = applications.filter(app => app.userId === userId && app.status !== 'Draft');
+    const myApplications = applications.filter(app => app.userId === userId);
     
     res.json({
       success: true,
@@ -322,7 +354,15 @@ exports.getMyApplications = async (req, res) => {
 };
 
 /**
- * Get application details belonging to applicant only
+ * Get detailed application with all versions and signed file URLs (valid 1 day).
+ * Only accessible by application owner.
+ * 
+ * @param {string} req.params.id - Application Firestore document ID
+ * @param {string} req.user.uid - User's Firebase UID
+ * @returns {{ success: boolean, application: Object, versions: Array }} Complete application data
+ * @throws {403} Not application owner
+ * @throws {404} Application not found
+ * @throws {500} Database or storage failure
  */
 exports.getMyApplicationDetails = async (req, res) => {
   try {
@@ -405,7 +445,6 @@ exports.getMyApplicationDetails = async (req, res) => {
         submittedDate: application.submittedDate,
         lastRevised: application.lastRevised,
         reviewedDate: application.reviewedDate,
-        reviewerNotes: application.reviewerNotes,
         currentVersion: application.currentVersion || 1
       },
       versions: versions
@@ -419,7 +458,19 @@ exports.getMyApplicationDetails = async (req, res) => {
 };
  
 /**
- * Add a new revision to an existing application
+ * Add new version to existing application with revised curriculum.
+ * Creates new version while preserving version history. Only accessible by owner.
+ * 
+ * @param {string} req.params.id - Application Firestore document ID
+ * @param {string} req.user.uid - User's Firebase UID
+ * @param {string} [req.body.analysisResults] - Pre-analyzed results (JSON, optional)
+ * @param {Array} req.files.pdfs - Curriculum PDFs (max 10)
+ * @param {Array} req.files.applicationPackageFiles - Package files (exactly 3)
+ * @returns {{ success: boolean, applicationId: string, version: number, missingCriteria: Array, filesCount: number }} Revision result
+ * @throws {400} No files or invalid file count
+ * @throws {403} Not application owner
+ * @throws {404} Application not found
+ * @throws {500} PDF validation, AI analysis, or database failure
  */
 exports.reviseApplication = async (req, res) => {
   const tempFilePaths = [];

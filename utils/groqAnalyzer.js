@@ -1,55 +1,73 @@
-//Import Groq so you can call their API
+/**
+ * @fileoverview Groq AI Curriculum Analyzer
+ * 
+ * Uses Groq API (llama-3.3-70b-versatile model) to analyze training curriculum
+ * documents and map them to WorkSafeBC Level 1 asbestos abatement competencies.
+ * 
+ * AI analyzes curriculum text and returns:
+ * - Mappings: Competencies covered (with where/how taught/how assessed)
+ * - Missing criteria: Competencies not found or insufficiently covered
+ */
+
 const Groq = require('groq-sdk');
 
-// Initialize Groq
 const groq = new Groq({ 
   apiKey: process.env.GROQ_API_KEY
 });
 
 /**
- * Analyze curriculum and map to Level 1 competencies.
- * @param {String} pdfText Extracted text from PDF
- * @param {Array} competencies List of competencies to map
- * @returns {Promise<Object>} Analysis result with mappings and missing criteria
+ * Analyze curriculum and map to Level 1 competencies using AI.
+ * 
+ * Workflow:
+ * 1. Build prompt with curriculum text and competency list
+ * 2. Send to Groq API with JSON response format
+ * 3. Parse and validate JSON response
+ * 4. Return mappings and missing criteria
+ * 
+ * @param {string} pdfText - Extracted text from curriculum PDFs (combined if multiple files)
+ * @param {Array<{rowIndex: number, text: string}>} competencies - List of competencies from getLevel1Competencies
+ * @returns {Promise<{mappings: Array<Object>, missingCriteria: Array<string>}>} Analysis results
+ * @throws {Error} API rate limit exceeded
+ * @throws {Error} Invalid API key
+ * @throws {Error} AI analysis failure
  */
 async function analyzeCurriculum(pdfText, competencies) {
-    //Try block prevents entire server from crashing if API fails
   try {
-    console.log('Starting Groq AI analysis...');  //Debug line. 
+    console.log('Starting Groq AI analysis...'); 
     
-    const prompt = buildPrompt(pdfText, competencies); //Calling function defined below
+    const prompt = buildPrompt(pdfText, competencies);
     
-    console.log('Sending request to Groq API...'); //Debug Line.
+    console.log('Sending request to Groq API...');
     
-    const completion = await groq.chat.completions.create({  //Sends the AI request. 
+    const completion = await groq.chat.completions.create({
       messages: [
         {
-          role: "system",  //controls behavior. 
+          role: "system",  // controls behavior. 
           content: "You are an expert at analyzing training curricula and mapping them to competency frameworks. Always respond with valid JSON only, no markdown or explanations."
         },
         {
-          role: "user",  //actual request
+          role: "user",  // actual request
           content: prompt
         }
       ],
       model: "llama-3.3-70b-versatile", 
-      temperature: 0.0, //randomness of AI. 0.0 = deterministic, 1.0 = creative. 
-      max_tokens: 8000, //we are limiting the AI response to 8000 
-      response_format: { type: "json_object" } //response format must be JSON
+      temperature: 0.0, // randomness of AI. 0.0 = deterministic, 1.0 = creative. 
+      max_tokens: 10000, // arbitrary
+      response_format: { type: "json_object" }
     });
     
-    console.log('   Response received, parsing...'); //debug line
+    console.log('Response received, parsing...');
     
-    const responseText = completion.choices[0].message.content; //parsing response here. 
+    const responseText = completion.choices[0].message.content;
     const analysis = JSON.parse(responseText);
     
     console.log(`Analysis complete`);
-    console.log(`Mappings found: ${analysis.mappings ? analysis.mappings.length : 0}`); //validity checking return 0 if mapping not found
-    console.log(`Missing criteria: ${analysis.missingCriteria ? analysis.missingCriteria.length : 0}`); //validity checking return 0 if mapping not found
+    console.log(`Mappings found: ${analysis.mappings ? analysis.mappings.length : 0}`); 
+    console.log(`Missing criteria: ${analysis.missingCriteria ? analysis.missingCriteria.length : 0}`);
     
-    return analysis; //returns the curriculum analysis 
+    return analysis;
  
-  } catch (error) { //catch API, limit, and usability errors. 
+  } catch (error) { 
     console.error('Groq analysis error:', error); 
     
     if (error.message.includes('rate limit')) {
@@ -65,16 +83,17 @@ async function analyzeCurriculum(pdfText, competencies) {
 }
 
 /**
- * Puts together a prompt for the AI 
- * @param {String} pdfText PDF content
- * @param {Array} competencies Competencies list
- * @returns {String} Formatted prompt
+ * Build AI prompt for curriculum analysis.
+ * Includes curriculum text, competency list, and detailed instructions.
+ * 
+ * @param {string} pdfText - Curriculum text (truncated to 10000 chars for Groq free tier)
+ * @param {Array<{rowIndex: number, text: string}>} competencies - Competency list
+ * @returns {string} Formatted prompt for AI
  */
 function buildPrompt(pdfText, competencies) {
-  // Groq free tier has 100k token daily limit
-  const limitedText = pdfText.substring(0, 10000); // temporarily set to 10000 to reduce token consumption for Groq
+  // be mindful of Groq daily token limit
+  const limitedText = pdfText.substring(0, 10000); // arbitrarily set to 10000 to reduce token consumption for Groq
   
-  //loops through the array, numbers, and joins them. 
   const competencyList = competencies.map((c, i) => 
     `${i + 1}. ${c.text}`
   ).join('\n');
@@ -141,9 +160,16 @@ Analyze which competencies are covered in the course material.
 }
 
 /**
- * Get ALL Level 1 competencies with accurate rowIndex from the template
- * Note row numbers are 1-based in the Excel sheet.
- * Only includes actual competency rows (skips headers like section titles).
+ * Get all Level 1 competencies with Excel row indices.
+ * Returns 26 competencies total across 4 sections:
+ * - Asbestos knowledge (8 competencies)
+ * - Health effects (7 competencies)
+ * - Workers Compensation Act and OHS Regulation (9 competencies)
+ * - Waste transportation and disposal (2 competencies)
+ * 
+ * Note: Row numbers are 1-based and match Excel template.
+ * 
+ * @returns {Array<{rowIndex: number, text: string}>} List of all Level 1 competencies
  */
 function getLevel1Competencies() {
   return [
@@ -182,7 +208,6 @@ function getLevel1Competencies() {
   ];
 }
 
-//makes function usable in other files. 
 module.exports = {
   analyzeCurriculum,
   getLevel1Competencies

@@ -30,7 +30,7 @@ exports.submitApplication = async (req, res) => {
     }
 
     // Check for package files
-    if (!applicationPackageFiles || applicationPackageFiles.length !== 3) {
+    if (!applicationPackageFiles || applicationPackageFiles.length !== 2) {
       return res.status(400).json({
         success: false,
         error: 'Exactly 3 package files required (Provider Form, Course Outline, Admin Doc)'
@@ -79,6 +79,9 @@ exports.submitApplication = async (req, res) => {
     if (req.user) {
       userId = req.user.uid;
     }
+    const providerInfoData = req.body.providerInfo 
+    ? JSON.parse(req.body.providerInfo) 
+    : null;
 
     const application = await createApplication({
       userId,
@@ -86,6 +89,7 @@ exports.submitApplication = async (req, res) => {
       organizationName,
       email,
       status: 'Unreviewed',
+      providerInfo: providerInfoData,
       submittedDate: new Date(),
       curriculumFiles: [],
       excelFile: null,
@@ -94,6 +98,8 @@ exports.submitApplication = async (req, res) => {
     });
     
     console.log(`Application ID: ${application.applicationId}`);
+
+    
     
     const filenames = curriculumFiles.map(f => f.originalname);
     const storageResults = await uploadMultipleToStorage(curriculumBuffers, filenames, application.id);
@@ -179,6 +185,7 @@ exports.submitApplication = async (req, res) => {
         id: updatedApp.id,
         applicationId: updatedApp.applicationId,
         providerName: updatedApp.providerName,
+        providerInfo: application.providerInfo || null,
         organizationName: updatedApp.organizationName,
         email: updatedApp.email,
         status: updatedApp.status,
@@ -438,7 +445,7 @@ exports.reviseApplication = async (req, res) => {
     }
 
     // Check for package files
-    if (!applicationPackageFiles || applicationPackageFiles.length !== 3) {
+    if (!applicationPackageFiles || applicationPackageFiles.length !== 2) {
       return res.status(400).json({
         success: false,
         error: 'Exactly 3 package files required (Provider Form, Course Outline, Admin Doc)'

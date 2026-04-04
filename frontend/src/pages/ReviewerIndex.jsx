@@ -372,7 +372,38 @@ function ReviewerModalContent({ data, expandedVersions, toggleVersion }) {
           <strong>Reviewer Notes:</strong> {app.reviewerNotes}
         </p>
       ) : null}
+      {app.providerInfo && (
+          <>
+            <hr />
+            <h5>Provider Information</h5>
 
+            {app.providerInfo.certLevels && app.providerInfo.certLevels.length > 0 && (
+              <p><strong>Certification Level(s):</strong> {app.providerInfo.certLevels.join(", ")}</p>
+            )}
+            <p><strong>Organization:</strong> {app.providerInfo.organizationName}</p>
+            <p><strong>Mailing Address:</strong> {app.providerInfo.mailingAddress}</p>
+            <p><strong>Primary Contact:</strong> {app.providerInfo.primaryContactName}</p>
+            <p><strong>Phone:</strong> {app.providerInfo.phoneNumber}</p>
+            <p><strong>Email:</strong> {app.providerInfo.emailAddress}</p>
+            {app.providerInfo.companyWebsite && (
+              <p><strong>Website:</strong> {app.providerInfo.companyWebsite}</p>
+            )}
+            {app.providerInfo.worksafeBCAccountNumber && (
+              <p><strong>WorkSafeBC Account #:</strong> {app.providerInfo.worksafeBCAccountNumber}</p>
+            )}
+            <p><strong>Provider Type:</strong> {app.providerInfo.providerType === "accredited" ? "Accredited" : "Public/Private (no accreditation)"}</p>
+            {app.providerInfo.accreditationStandard && (
+              <p><strong>Accreditation Standard:</strong> {app.providerInfo.accreditationStandard}</p>
+            )}
+            <hr />
+            <h5>Training Program Details</h5>
+            <p><strong>Facility Location(s):</strong> {app.providerInfo.trainingFacilityLocations}</p>
+            <p><strong>Delivery Model:</strong> {app.providerInfo.deliveryModel}</p>
+            <p><strong>Program Length:</strong> {app.providerInfo.programLengthHours} hours</p>
+            <p><strong>Language(s):</strong> {app.providerInfo.languages}</p>
+            <p><strong>Expected Launch Date:</strong> {app.providerInfo.expectedLaunchDate}</p>
+          </>
+        )}
       <hr />
       <h5>Version History</h5>
 

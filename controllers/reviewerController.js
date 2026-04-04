@@ -151,6 +151,7 @@ exports.getApplicationDetails = async (req, res) => {
         providerName: application.providerName,
         organizationName: application.organizationName,
         email: application.email,
+        providerInfo: application.providerInfo || null,
         status: application.status,
         submittedDate: application.submittedDate,
         lastRevised: application.lastRevised,

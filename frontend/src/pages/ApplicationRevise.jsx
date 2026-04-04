@@ -2,11 +2,8 @@ import { useEffect, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { onAuthStateChanged } from "firebase/auth";
 import { auth } from "../firebase/firebase";
+import { MAX_FILE_SIZE_MB, MAX_CURRICULUM_FILES, API_BASE_URL } from "../../config/constants";
 import "../styles/applicationrevise.css";
-
-const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:3000";
-const MAX_FILE_SIZE = 10 * 1024 * 1024;
-const MAX_CURRICULUM_FILES = 10;
 
 function formatMB(bytes) {
   return (bytes / 1024 / 1024).toFixed(2);
@@ -81,8 +78,8 @@ export default function ApplicationRevise() {
     if (file.type !== "application/pdf" && !file.name.toLowerCase().endsWith(".pdf")) {
       return `File "${file.name}" is not a PDF.`;
     }
-    if (file.size > MAX_FILE_SIZE) {
-      return `File "${file.name}" exceeds 10MB.`;
+    if (file.size > (MAX_FILE_SIZE_MB * 1024 * 1024)) {
+      return `File "${file.name}" exceeds ${MAX_FILE_SIZE_MB}MB.`;
     }
     return null;
   }
@@ -162,7 +159,7 @@ export default function ApplicationRevise() {
         formData.append("pdfs", file);
       });
 
-      const response = await fetch(`${API_BASE}/api/applications/analyze`, {
+      const response = await fetch(`${API_BASE_URL}/api/applications/analyze`, {
         method: "POST",
         headers: {
           Authorization: `Bearer ${token}`,
@@ -248,7 +245,7 @@ export default function ApplicationRevise() {
       formData.append("applicationPackageFiles", courseOutline);
       formData.append("applicationPackageFiles", administrationDocument);
 
-      const response = await fetch(`${API_BASE}/api/applications/revise/${applicationId}`, {
+      const response = await fetch(`${API_BASE_URL}/api/applications/revise/${applicationId}`, {
         method: "POST",
         headers: {
           Authorization: `Bearer ${token}`,
@@ -403,7 +400,7 @@ export default function ApplicationRevise() {
                     <p>
                       <strong>Click to select file</strong> or drag and drop here
                     </p>
-                    <p className="text-muted">PDF format, maximum 10MB per file, up to 10 files</p>
+                    <p className="text-muted">PDF format, maximum {MAX_FILE_SIZE_MB}MB per file, up to {MAX_CURRICULUM_FILES} files</p>
                   </div>
 
                   <input
@@ -529,7 +526,7 @@ export default function ApplicationRevise() {
               <label className="upload-label_applicationrevise">
                 Upload Completed Provider Application Form <span className="text-danger">*</span>
               </label>
-              <p className="upload-description_applicationrevise">PDF format, maximum 10MB</p>
+              <p className="upload-description_applicationrevise">PDF format, maximum {MAX_FILE_SIZE_MB}MB</p>
 
               <div
                 className={`file-upload-area_applicationrevise ${
@@ -598,7 +595,7 @@ export default function ApplicationRevise() {
               <label className="upload-label_applicationrevise">
                 Upload Course Outline <span className="text-danger">*</span>
               </label>
-              <p className="upload-description_applicationrevise">PDF format, maximum 10MB</p>
+              <p className="upload-description_applicationrevise">PDF format, maximum {MAX_FILE_SIZE_MB}MB</p>
 
               <div
                 className={`file-upload-area_applicationrevise ${
@@ -686,7 +683,7 @@ export default function ApplicationRevise() {
               <label className="upload-label_applicationrevise">
                 Upload Administration Document <span className="text-danger">*</span>
               </label>
-              <p className="upload-description_applicationrevise">PDF format, maximum 10MB</p>
+              <p className="upload-description_applicationrevise">PDF format, maximum {MAX_FILE_SIZE_MB}MB</p>
 
               <div
                 className={`file-upload-area_applicationrevise ${

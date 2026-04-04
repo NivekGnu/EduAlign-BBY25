@@ -21,7 +21,6 @@
  * - PORT: Server port (default: 3000)
  * - Firebase environment variables (see utils/firebase.js)
  * - GROQ_API_KEY: Groq API key for AI analysis
- * - MAX_FILE_SIZE_MB: Max upload size (optional, default: 10)
  */
 
 const express = require('express');

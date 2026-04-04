@@ -2,9 +2,8 @@ import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { onAuthStateChanged, signOut } from "firebase/auth";
 import { auth } from "../firebase/firebase";
+import { API_BASE_URL } from "../../config/constants";
 import "../styles/reviewerindex.css";
-
-const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:3000";
 
 function formatDate(ts) {
   if (!ts) return "—";
@@ -70,7 +69,7 @@ export default function ReviewerIndex() {
     setError("");
 
     try {
-      const response = await fetch(`${API_BASE}/api/reviewer/applications`, {
+      const response = await fetch(`${API_BASE_URL}/api/reviewer/applications`, {
         headers: {
           Authorization: `Bearer ${authToken}`,
         },
@@ -104,7 +103,7 @@ export default function ReviewerIndex() {
     );
 
     try {
-      const response = await fetch(`${API_BASE}/api/reviewer/applications/${id}/status`, {
+      const response = await fetch(`${API_BASE_URL}/api/reviewer/applications/${id}/status`, {
         method: "PATCH",
         headers: {
           Authorization: `Bearer ${authToken}`,
@@ -133,7 +132,7 @@ export default function ReviewerIndex() {
     setExpandedVersions({});
 
     try {
-      const response = await fetch(`${API_BASE}/api/reviewer/applications/${id}`, {
+      const response = await fetch(`${API_BASE_URL}/api/reviewer/applications/${id}`, {
         headers: {
           Authorization: `Bearer ${authToken}`,
         },

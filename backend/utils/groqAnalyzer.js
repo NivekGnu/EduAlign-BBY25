@@ -15,6 +15,8 @@ const groq = new Groq({
   apiKey: process.env.GROQ_API_KEY
 });
 
+const { MAX_INPUT_CHARACTERS, MAX_RESPONSE_TOKENS } = require('../config/constants');
+
 /**
  * Analyze curriculum and map to Level 1 competencies using AI.
  * 
@@ -52,7 +54,7 @@ async function analyzeCurriculum(pdfText, competencies) {
       ],
       model: "llama-3.3-70b-versatile", 
       temperature: 0.0, // randomness of AI. 0.0 = deterministic, 1.0 = creative. 
-      max_tokens: 10000, // arbitrary
+      max_tokens: MAX_RESPONSE_TOKENS,
       response_format: { type: "json_object" }
     });
     
@@ -86,13 +88,13 @@ async function analyzeCurriculum(pdfText, competencies) {
  * Build AI prompt for curriculum analysis.
  * Includes curriculum text, competency list, and detailed instructions.
  * 
- * @param {string} pdfText - Curriculum text (truncated to 10000 chars for Groq free tier)
+ * @param {string} pdfText - Curriculum text (truncated to MAX_INPUT_CHARACTERS to reduce tokens)
  * @param {Array<{rowIndex: number, text: string}>} competencies - Competency list
  * @returns {string} Formatted prompt for AI
  */
 function buildPrompt(pdfText, competencies) {
-  // be mindful of Groq daily token limit
-  const limitedText = pdfText.substring(0, 10000); // arbitrarily set to 10000 to reduce token consumption for Groq
+  // be mindful of Groq daily token limit (free tier)
+  const limitedText = pdfText.substring(0, MAX_INPUT_CHARACTERS);
   
   const competencyList = competencies.map((c, i) => 
     `${i + 1}. ${c.text}`

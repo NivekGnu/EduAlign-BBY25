@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { createUserWithEmailAndPassword, updateProfile } from "firebase/auth";
 import { auth } from "../firebase/firebase"; // adjust if your path is different
-import { API_BASE_URL } from "../utils/api"; // we'll create this (below)
+import { API_BASE_URL } from "../../config/constants";
 import "../styles/signup.css";
 
 export default function Signup() {

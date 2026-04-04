@@ -12,10 +12,10 @@
  * - GET /my-applications/:id - Get detailed application with version history
  * 
  * File upload configuration:
- * - Max file size: 10MB (configurable via MAX_FILE_SIZE_MB env var)
+ * - Max file size: MAX_FILE_SIZE_MB (10MB)
  * - Allowed type: PDF only
- * - Max curriculum files: 10
- * - Required package files: 3 (Provider Form, Course Outline, Admin Doc)
+ * - Max curriculum files: MAX_CURRICULUM_FILES (10)
+ * - Required package files: APPLICATION_PACKAGE_FILES (3)
  */
 
 const express = require('express');
@@ -23,12 +23,13 @@ const router = express.Router();
 const multer = require('multer');
 const applicationController = require('../controllers/applicationController');
 const { requireAuth } = require('../middleware/auth');
+const { MAX_FILE_SIZE_MB, MAX_CURRICULUM_FILES, APPLICATION_PACKAGE_FILES } = require('../config/constants');
 
 // Configure multer for file uploads
 const upload = multer({
   dest: 'uploads/',
   limits: {
-    fileSize: (parseInt(process.env.MAX_FILE_SIZE_MB) || 10) * 1024 * 1024 // Default 10MB
+    fileSize: MAX_FILE_SIZE_MB * 1024 * 1024 // convert to bytes
   },
   fileFilter: (req, file, cb) => {
     if (file.mimetype === 'application/pdf') {
@@ -45,7 +46,7 @@ const upload = multer({
  * Analyze curriculum PDFs without saving to database (preview mode).
  * Returns AI analysis with competency mappings.
  */
-router.post('/analyze', requireAuth, upload.array('pdfs', 10), applicationController.analyzeCurriculum);
+router.post('/analyze', requireAuth, upload.array('pdfs', MAX_CURRICULUM_FILES), applicationController.analyzeCurriculum);
 
 /**
  * POST /api/applications/submit
@@ -53,12 +54,12 @@ router.post('/analyze', requireAuth, upload.array('pdfs', 10), applicationContro
  * Creates application record, runs AI analysis, generates Excel.
  * 
  * Required files:
- * - pdfs: 1-10 curriculum PDF files
- * - applicationPackageFiles: Exactly 3 PDFs (Provider Form, Course Outline, Admin Doc)
+ * - pdfs: 1 to MAX_CURRICULUM_FILES curriculum PDF files
+ * - applicationPackageFiles: Exactly APPLICATION_PACKAGE_FILES PDFs (Provider Form, Course Outline, Administration Document)
  */
 router.post('/submit', requireAuth, upload.fields([
-  { name: 'pdfs', maxCount: 10 },
-  { name: 'applicationPackageFiles', maxCount: 3 }
+  { name: 'pdfs', maxCount: MAX_CURRICULUM_FILES },
+  { name: 'applicationPackageFiles', maxCount: APPLICATION_PACKAGE_FILES }
 ]), applicationController.submitApplication);
 
 /**
@@ -67,25 +68,25 @@ router.post('/submit', requireAuth, upload.fields([
  * Preserves all previous versions in version history.
  * 
  * Required files:
- * - pdfs: 1-10 curriculum PDF files
- * - applicationPackageFiles: Exactly 3 PDFs (Provider Form, Course Outline, Admin Doc)
+ * - pdfs: 1 to MAX_CURRICULUM_FILES curriculum PDF files
+ * - applicationPackageFiles: Exactly APPLICATION_PACKAGE_FILES PDFs (Provider Form, Course Outline, Administration Document)
  */
 router.post('/revise/:id', requireAuth, upload.fields([
-  { name: 'pdfs', maxCount: 10 },
-  { name: 'applicationPackageFiles', maxCount: 3 }
+  { name: 'pdfs', maxCount: MAX_CURRICULUM_FILES },
+  { name: 'applicationPackageFiles', maxCount: APPLICATION_PACKAGE_FILES }
 ]), applicationController.reviseApplication);
 
 /**
  * GET /api/applications/my-applications
  * Get all applications for authenticated user.
  */
-router.get('/my-applications', requireAuth, applicationController.getMyApplications); // allow applicant to view all their applications
+router.get('/my-applications', requireAuth, applicationController.getMyApplications);
 
 /**
  * GET /api/applications/my-applications/:id
  * Get detailed application with all versions and signed download URLs.
  * Only accessible by application owner.
  */
-router.get('/my-applications/:id', requireAuth, applicationController.getMyApplicationDetails); // allow applicant to see details about their application
+router.get('/my-applications/:id', requireAuth, applicationController.getMyApplicationDetails);
 
 module.exports = router;

@@ -10,348 +10,62 @@ The platform uses AI-powered curriculum analysis to streamline the approval proc
 
 ---
 
-## Platform Overview
-
-EduAlign AI bridges the gap between training providers and WorkSafeBC reviewers by:
-
-1. **For Training Providers:**
-   - Upload curriculum PDFs and get instant AI analysis
-   - Receive pre-filled Excel templates mapped to Level 1 competencies
-   - Submit complete applications with version control
-   - Track application status in real-time
-
-2. **For Reviewers:**
-   - View all submitted applications with dashboard statistics
-   - Access curriculum files, package documents, and AI-generated mappings
-   - Update application status (Unreviewed → Incomplete → Approved)
-   - Review version history for revised applications
-
-3. **Key Benefits:**
-   - Reduces manual competency mapping time
-   - Improves accuracy of competency alignment
-   - Creates traceable validation records
-   - Standardizes the approval workflow
-
----
-
 ## Tech Stack
 
-### **Backend**
-- **Node.js + Express** - REST API server
-- **Firebase Admin SDK** - Authentication, Firestore database, Cloud Storage
-- **Groq API** - AI curriculum analysis (llama-3.3-70b-versatile)
-- **ExcelJS** - Excel template generation
-- **pdf-parse** - PDF text extraction
-- **Multer** - File upload handling
-
-### **Frontend**
-- **React + Vite** - UI framework and build tool
-- **React Router** - Client-side routing
-- **Firebase SDK** - Client-side authentication
-- **Axios** - HTTP requests
-
-### **Infrastructure**
-- **Firebase Firestore** - NoSQL database for application records
-- **Firebase Storage** - File storage for PDFs and Excel files
-- **Firebase Authentication** - User management with custom claims (applicant/reviewer roles)
+**Backend:** Node.js, Express, Firebase Admin SDK, Groq API, ExcelJS, pdf-parse, Multer  
+**Frontend:** React, Vite, React Router, Firebase SDK  
+**Infrastructure:** Firebase (Firestore, Storage, Authentication)
 
 ---
 
 ## Project Structure
 
 ```
-edualign-ai/
+EDUALIGN-BBY25/
 ├── backend/
-│   ├── controllers/           # Request handlers
-│   │   ├── applicationController.js
-│   │   ├── authController.js
-│   │   └── reviewerController.js
-│   ├── middleware/            # Auth middleware
-│   │   └── auth.js
-│   ├── routes/                # API route definitions
-│   │   ├── applications.js
-│   │   ├── auth.js
-│   │   └── reviewer.js
-│   ├── utils/                 # Utility functions
-│   │   ├── excelFiller.js     # Excel template generation
-│   │   ├── firebase.js        # Firebase Admin initialization
-│   │   ├── firebaseStorage.js # Cloud Storage wrapper
-│   │   ├── firestoreService.js # Database operations
-│   │   ├── groqAnalyzer.js    # AI curriculum analysis
-│   │   ├── pdfParser.js       # PDF text extraction
-│   │   └── manageRole.js      # CLI role management
-│   ├── templates/             # Excel template files
-│   ├── firebase-config.js     # Client-side Firebase config
-│   ├── server.js              # Express server entry point
-│   ├── .env                   # Environment variables
-│   └── package.json
-├── frontend/
-│   ├── src/
-│   │   ├── components/        # React components
-│   │   ├── pages/             # Page components
-│   │   ├── App.jsx            # Root component
-│   │   └── main.jsx           # Entry point
-│   ├── package.json
-│   └── vite.config.js
-└── README.md
+│   ├── config/constants.js         # Configuration constants
+│   ├── controllers/                # Request handlers
+│   ├── middleware/auth.js          # Authentication middleware
+│   ├── routes/                     # API route definitions
+│   ├── utils/                      # Firebase, Groq, PDF, Excel utilities
+│   ├── templates/                  # Excel template file
+│   ├── uploads/                    # Temporary file storage
+│   ├── server.js
+│   └── .env                        # Environment variables
+└── frontend/
+    ├── src/
+    │   ├── config/constants.js     # Frontend configuration
+    │   ├── firebase/firebase.js    # Firebase client config
+    │   ├── pages/                  # React page components
+    │   ├── styles/                 # CSS files
+    │   ├── App.jsx
+    │   └── main.jsx
+    ├── index.html
+    └── vite.config.js
 ```
 
 ---
 
-## Getting Started
+## Configuration
 
-### **Prerequisites**
-- Node.js (v16 or higher)
-- npm or yarn
-- Firebase project with Firestore, Storage, and Authentication enabled
-- Groq API key (free tier available)
-
-### **1. Clone Repository**
-```bash
-git clone <repository-url>
-cd edualign-ai
-```
-
-### **2. Backend Setup**
-
-```bash
-# Install dependencies
-npm install
-
-# Create .env file with the following variables:
-# Firebase Admin SDK
-FIREBASE_PROJECT_ID=your-project-id
-FIREBASE_CLIENT_EMAIL=your-service-account-email
-FIREBASE_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----\n"
-FIREBASE_STORAGE_BUCKET=your-bucket-name
-
-# Groq API
-GROQ_API_KEY=your-groq-api-key
-
-# Server config
-PORT=3000
-MAX_FILE_SIZE_MB=10
-
-# Start server
-node server.js
-```
-
-Server runs at: `http://localhost:3000`
-
-### **3. Frontend Setup**
-
-```bash
-# Navigate to frontend folder
-cd frontend
-
-# Install dependencies
-npm install
-
-# Start development server
-npm run dev
-```
-
-Frontend runs at: `http://localhost:5173`
-
-### **4. Set Up First Reviewer**
-
-```bash
-# Promote a user to reviewer role (run from backend folder)
-node utils/manageRole.js user@example.com
-```
-
----
-
-## API Endpoints
-
-### **Authentication**
-- `POST /api/auth/set-role` - Set user role to "applicant" (default)
-
-### **Applicant Routes** (requires authentication)
-- `POST /api/applications/analyze` - Preview curriculum analysis (no save)
-- `POST /api/applications/submit` - Submit new application
-- `POST /api/applications/revise/:id` - Add revision to existing application
-- `GET /api/applications/my-applications` - Get user's applications
-- `GET /api/applications/my-applications/:id` - Get application details
-
-### **Reviewer Routes** (requires reviewer role)
-- `GET /api/reviewer/applications` - Get all applications with stats
-- `GET /api/reviewer/applications/:id` - Get application details
-- `PATCH /api/reviewer/applications/:id/status` - Update application status
-
-### **Utility**
-- `GET /api/health` - Health check endpoint
-
----
-
-## Application Workflow
-
-### **1. Applicant Submits Application**
-```
-Upload PDFs → AI Analysis → Generate Excel → Create Application (v1)
-```
-
-**Files required:**
-- **Curriculum PDFs** (1-10 files): Course materials to be analyzed
-- **Package Files** (exactly 3 PDFs):
-  - Provider Application Form
-  - Course Outline
-  - Administrative Documentation
-
-### **2. AI Analysis**
-- Extracts text from all curriculum PDFs
-- Maps content to 33 Level 1 competencies
-- Identifies:
-  - **Where** each competency is covered (document + page numbers)
-  - **How taught** (In-class presentation, online materials, etc.)
-  - **How assessed** (Quiz, practical observation, etc.)
-- Generates missing criteria list
-
-### **3. Excel Template Generation**
-- Fills WorkSafeBC template with AI mappings
-- Marks missing competencies as "Not covered"
-- Uploads to Firebase Storage
-
-### **4. Review Process**
-- Reviewer views application with all files
-- Updates status:
-  - **Unreviewed** → Initial state
-  - **Incomplete** → Missing competencies, needs revision
-  - **Approved** → All competencies covered
-
-### **5. Revision (if needed)**
-- Applicant uploads revised curriculum
-- New version created (preserves history)
-- AI re-analyzes and generates new Excel
-
----
-
-## Database Schema
-
-### **Applications Collection**
+### **Backend** (`backend/config/constants.js`)
 ```javascript
-{
-  id: "auto-generated-firestore-id",
-  applicationId: "APP20250403ABCD",  // Human-readable ID
-  userId: "firebase-uid",
-  providerName: "John Doe",
-  organizationName: "ABC Training Inc",
-  email: "provider@example.com",
-  status: "Unreviewed" | "Incomplete" | "Approved",
-  submittedDate: Date,
-  currentVersion: 2,  // Latest version number
-  versions: [
-    {
-      version: 1,
-      analyzedAt: Date,
-      curriculumFiles: [...],  // Array of file metadata
-      applicationPackageFiles: [...],
-      excelFile: {...},
-      mappings: [...],  // AI-found competencies
-      missingCriteria: [...]  // Not covered
-    },
-    {
-      version: 2,
-      // ... (revision data)
-    }
-  ],
-  createdAt: Timestamp,
-  updatedAt: Timestamp
-}
+MAX_FILE_SIZE_MB = 10              // Maximum file size (10MB)
+MAX_CURRICULUM_FILES = 10          // Maximum curriculum PDFs (1-10)
+APPLICATION_PACKAGE_FILES = 3      // Required package files (exactly 3)
+MAX_INPUT_CHARACTERS = 10000       // AI input limit (10k chars, increase for production eg. 100k)
+MAX_RESPONSE_TOKENS = 5000        // AI response limit 
 ```
 
----
-
-## Authentication & Authorization
-
-### **Roles**
-- **applicant** (default) - Can submit and revise own applications
-- **reviewer** - Can view all applications and update status
-
-### **Firebase Custom Claims**
-Roles stored in Firebase Auth custom claims:
+### **Frontend** (`frontend/src/config/constants.js`)
 ```javascript
-{
-  uid: "user-id",
-  email: "user@example.com",
-  role: "applicant" | "reviewer"
-}
+API_BASE_URL                       // Backend API URL (defaults to http://localhost:3000)
+MAX_FILE_SIZE_MB = 10              // Maximum file size
+MAX_CURRICULUM_FILES = 10          // Maximum curriculum PDFs
+REQUIRED_PACKAGE_FILES = 3         // Required package files
 ```
 
-### **Middleware**
-- `requireAuth` - Verifies Firebase ID token
-- `requireReviewerRole` - Ensures user has reviewer role
-
----
-
-## Key Features
-
-### **AI Curriculum Analysis**
-- **Model:** Groq llama-3.3-70b-versatile
-- **Token limit:** 8000 max tokens
-- **Temperature:** 0.0 (deterministic)
-- **Output:** JSON with mappings and missing criteria
-
-### **Version Control**
-- Each application maintains complete version history
-- Revisions create new versions without deleting old ones
-- All files preserved for audit trail
-
-### **File Storage Structure**
-```
-applications/
-  └── {applicationId}/
-      ├── {timestamp}_curriculum1.pdf
-      ├── {timestamp}_curriculum2.pdf
-      ├── {timestamp}_provider_form.pdf
-      ├── {timestamp}_course_outline.pdf
-      ├── {timestamp}_admin_docs.pdf
-      └── {timestamp}_Filled_Level1_{applicationId}.xlsx
-```
-
-### **Signed URLs**
-- Generated for secure file access
-- Valid for 1 day (configurable)
-- Automatically regenerated when expired
-
----
-
-## Testing
-
-### **Test Error Handling**
-```bash
-curl http://localhost:3000/test-500
-# Should return 500 error
-```
-
-### **Test Health Check**
-```bash
-curl http://localhost:3000/api/health
-# Returns: {"success":true,"message":"API is running"}
-```
-
----
-
-## 🔧 Configuration
-
-### **Rate Limiting**
-- 60 requests per hour per IP address
-- Configurable in `server.js`
-
-### **File Upload Limits**
-- Max file size: 10MB (default, configurable via `MAX_FILE_SIZE_MB`)
-- Max curriculum PDFs: 10
-- Required package files: 3
-- Body size limit: 15MB
-
-### **AI Analysis Limits**
-- Curriculum text truncated to 10,000 characters (Groq free tier)
-- Increase in production for full analysis
-
----
-
-## Environment Variables
-
+### **Environment Variables** (`backend/.env`)
 ```env
 # Firebase Admin SDK
 FIREBASE_PROJECT_ID=your-project-id
@@ -364,27 +78,158 @@ GROQ_API_KEY=gsk_...
 
 # Server
 PORT=3000
-MAX_FILE_SIZE_MB=10
+```
+
+**Note:** Frontend has no `.env` file. API URL configurable via `VITE_API_BASE_URL` environment variable if needed.
+
+---
+
+## Getting Started
+
+### **Prerequisites**
+- Node.js (v16+)
+- Firebase project with Firestore, Storage, and Authentication enabled
+- Groq API key (free tier available at https://console.groq.com)
+
+### **Installation**
+
+**1. Clone and install:**
+```bash
+git clone <repository-url>
+cd EDUALIGN-BBY25
+
+# Backend
+cd backend
+npm install
+
+# Frontend (in new terminal)
+cd frontend
+npm install
+```
+
+**2. Configure backend:**
+Create `backend/.env` with Firebase and Groq credentials (see Configuration section above)
+
+**3. Start servers:**
+```bash
+# Backend (port 3000)
+cd backend
+node server.js
+
+# Frontend (port 5173)
+cd frontend
+npm run dev
+```
+
+**4. Set up first reviewer:**
+```bash
+cd backend
+node utils/manageRole.js user@example.com
 ```
 
 ---
 
-## Common Issues
+## Application Workflow
 
-### **Firebase initialization fails**
-- Verify all Firebase env variables are set
-- Check private key formatting (must include `\n` newlines)
-- Ensure service account has correct permissions
+**1. Submit Application**  
+Applicant uploads curriculum PDFs (1-10) + 3 package files (Provider Form, Course Outline, Admin Doc)
 
-### **PDF parsing fails**
-- Only text-based PDFs supported (not scanned images)
-- Files must be valid PDFs with >100 characters
-- Use OCR for scanned documents
+**2. AI Analysis**  
+Groq AI maps curriculum to 26 Level 1 competencies, identifies where/how taught/assessed
 
-### **Groq API errors**
-- Free tier: 100k tokens/day limit
-- Check API key validity
-- Monitor rate limits
+**3. Generate Excel**  
+Pre-filled WorkSafeBC template with mappings + missing competencies marked "Not covered"
+
+**4. Review**  
+Reviewer updates status: Unreviewed → Incomplete (if revisions needed) → Approved
+
+**5. Revision** (if needed)  
+Applicant uploads revised curriculum, creates new version (preserves history)
+
+---
+
+## API Endpoints
+
+### **Authentication**
+- `POST /api/auth/set-role` - Set user role (default: applicant)
+
+### **Applicant** (requires authentication)
+- `POST /api/applications/analyze` - Preview analysis (no save)
+- `POST /api/applications/submit` - Submit new application
+- `POST /api/applications/revise/:id` - Add revision
+- `GET /api/applications/my-applications` - Get user's applications
+- `GET /api/applications/my-applications/:id` - Get application details
+
+### **Reviewer** (requires reviewer role)
+- `GET /api/reviewer/applications` - Get all applications + stats
+- `GET /api/reviewer/applications/:id` - Get application details
+- `PATCH /api/reviewer/applications/:id/status` - Update status
+
+### **Utility**
+- `GET /api/health` - Health check
+
+---
+
+## Key Features
+
+### **AI Analysis**
+- **Model:** Groq llama-3.3-70b-versatile
+- **Input:** 10,000 characters (configurable, increase for production)
+- **Output:** JSON with competency mappings + missing criteria
+- **Temperature:** 0.0 (deterministic)
+
+### **Authentication**
+- **Roles:** applicant (default), reviewer
+- **Method:** Firebase custom claims
+- **Middleware:** `requireAuth`, `requireReviewerRole`
+
+### **File Storage**
+- **Structure:** `applications/{applicationId}/{timestamp}_{filename}`
+- **Access:** Signed URLs (valid 1 day, regenerated as needed)
+- **Limits:** 10MB per file, 15MB request body, 60 requests/hour per IP
+
+### **Version Control**
+- Complete version history preserved
+- All files saved for audit trail
+- Revisions create new versions without deleting old ones
+
+---
+
+## Database Schema
+
+```javascript
+{
+  applicationId: "APP20250403ABCD",       // Human-readable ID
+  userId: "firebase-uid",
+  providerName: "John Doe",
+  organizationName: "ABC Training Inc",
+  email: "provider@example.com",
+  status: "Unreviewed" | "Incomplete" | "Approved",
+  submittedDate: Date,
+  currentVersion: 2,
+  versions: [
+    {
+      version: 1,
+      analyzedAt: Date,
+      curriculumFiles: [...],           // File metadata
+      applicationPackageFiles: [...],
+      excelFile: {...},
+      mappings: [...],                  // AI-found competencies
+      missingCriteria: [...]            // Not covered
+    }
+  ],
+  createdAt: Timestamp,
+  updatedAt: Timestamp
+}
+```
+
+## Production Deployment
+
+1. Upgrade to paid Groq plan
+2. Increase `MAX_INPUT_CHARACTERS` to 50000-100000
+3. Increase `MAX_RESPONSE_TOKENS` to 25000-50000
+4. Configure CORS for production domain
+5. Set `VITE_API_BASE_URL` to production API URL
 
 ---
 
@@ -392,17 +237,9 @@ MAX_FILE_SIZE_MB=10
 
 Copyright (c) 2025 WorkSafeBC. All rights reserved.
 
-This project is a student-sponsored initiative developed for WorkSafeBC.
+This project is a student-sponsored initiative developed for WorkSafeBC.  
 Unauthorized copying, modification, or distribution is prohibited.
 
----
+**Authors:** Clinton Nguyen, Kevin Ung, Shawn Lee, Tommy Tang
 
-## 👥 Authors
-- Clinton Nguyen, Kevin Ung, Shawn Lee, Tommy Tang
-
----
-
-## Acknowledgments
-- WorkSafeBC for competency framework and CSS
-- Groq for AI infrastructure
-- Firebase for backend services
+**Acknowledgments:** WorkSafeBC, Groq, Firebase

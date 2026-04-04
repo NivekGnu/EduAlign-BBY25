@@ -58,6 +58,7 @@ async function createApplication(data) {
       providerName: data.providerName,
       organizationName: data.organizationName,
       email: data.email,
+      providerInfo: data.providerInfo || null,
       status: data.status || 'Unreviewed',
       submittedDate: data.submittedDate,
       currentVersion: 1,

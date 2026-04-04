@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { onAuthStateChanged } from "firebase/auth";
 import { auth } from "../firebase/firebase";
+import ProviderInfoForm from "../components/ProviderInfoForm";
 import "../styles/application.css";
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:3000";
@@ -29,6 +30,7 @@ export default function Application() {
   const [analysisResults, setAnalysisResults] = useState(null);
 
   const [providerApplicationForm, setProviderApplicationForm] = useState(null);
+  const [providerInfo, setProviderInfo] = useState(null);
   const [courseOutline, setCourseOutline] = useState(null);
   const [administrationDocument, setAdministrationDocument] = useState(null);
 
@@ -197,7 +199,7 @@ export default function Application() {
     if (curriculumInputRef.current) curriculumInputRef.current.value = "";
   }
 
-  function continueToApplicationPackage() {
+  function continueToProviderInfo() {
     setError("");
 
     if (selectedFiles.length === 0 || !analysisResults) {
@@ -209,13 +211,24 @@ export default function Application() {
     window.scrollTo(0, 0);
   }
 
+  function handleProviderInfoContinue(data) {
+  setProviderInfo(data);
+  setStep(3);
+  window.scrollTo(0, 0);
+}
+
+function backToProviderInfo() {
+  setStep(2);
+  window.scrollTo(0, 0);
+}
+
   function backToCurriculum() {
     setStep(1);
     window.scrollTo(0, 0);
   }
 
   function validatePackageFiles() {
-    if (!providerApplicationForm || !courseOutline || !administrationDocument) {
+    if (!courseOutline || !administrationDocument) {
       throw new Error("Please upload all 3 required application package documents.");
     }
   }
@@ -232,6 +245,8 @@ export default function Application() {
       setError("Please analyze your curriculum first.");
       return;
     }
+
+    
 
     try {
       validatePackageFiles();
@@ -250,10 +265,12 @@ export default function Application() {
         formData.append("pdfs", file);
       });
 
-      formData.append("applicationPackageFiles", providerApplicationForm);
       formData.append("applicationPackageFiles", courseOutline);
       formData.append("applicationPackageFiles", administrationDocument);
 
+      if (providerInfo) {
+    formData.append("providerInfo", JSON.stringify(providerInfo));
+    }
       const response = await fetch(`${API_BASE}/api/applications/submit`, {
         method: "POST",
         headers: {
@@ -269,7 +286,7 @@ export default function Application() {
       }
 
       setResult(data);
-      setStep(3);
+      setStep(4);
       window.scrollTo(0, 0);
     } catch (err) {
       console.error(err);
@@ -305,38 +322,23 @@ export default function Application() {
 
         <div className="progress-container_application">
           <div className="progress-steps_application">
-            <div
-              className={`progress-step_application ${
-                step === 1 ? "active_application" : step > 1 ? "completed_application" : ""
-              }`}
-            >
+            <div className={`progress-step_application ${step === 1 ? "active_application" : step > 1 ? "completed_application" : ""}`}>
               <div className="step-circle_application">1</div>
-              <div className="step-label_application">
-                Upload & Analyze
-                <br />
-                Curriculum
-              </div>
+              <div className="step-label_application">Upload & Analyze<br />Curriculum</div>
             </div>
 
-            <div
-              className={`progress-step_application ${
-                step === 2 ? "active_application" : step > 2 ? "completed_application" : ""
-              }`}
-            >
+            <div className={`progress-step_application ${step === 2 ? "active_application" : step > 2 ? "completed_application" : ""}`}>
               <div className="step-circle_application">2</div>
-              <div className="step-label_application">
-                Upload Application
-                <br />
-                Package
-              </div>
+              <div className="step-label_application">Provider<br />Information</div>
             </div>
 
-            <div
-              className={`progress-step_application ${
-                step === 3 ? "completed_application" : ""
-              }`}
-            >
+            <div className={`progress-step_application ${step === 3 ? "active_application" : step > 3 ? "completed_application" : ""}`}>
               <div className="step-circle_application">3</div>
+              <div className="step-label_application">Upload Application<br />Package</div>
+            </div>
+
+            <div className={`progress-step_application ${step === 4 ? "completed_application" : ""}`}>
+              <div className="step-circle_application">4</div>
               <div className="step-label_application">Submit</div>
             </div>
           </div>
@@ -521,7 +523,7 @@ export default function Application() {
                   <button
                     type="button"
                     className="btn btn-orange btn-lg"
-                    onClick={continueToApplicationPackage}
+                    onClick={continueToProviderInfo}
                   >
                     <i className="fa fa-arrow-right" /> Continue to Application Package
                   </button>
@@ -530,94 +532,23 @@ export default function Application() {
             )}
           </>
         ) : null}
-
         {!loading && !result && step === 2 ? (
+          <ProviderInfoForm
+            initialData={providerInfo || {}}
+            onBack={() => { setStep(1); window.scrollTo(0, 0); }}
+            onContinue={handleProviderInfoContinue}
+          />
+        ) : null}
+        {!loading && !result && step === 3 ? (
           <div className="applicationPackageSection_application">
-            <h2>Step 2: Upload Application Package Documents</h2>
+            <h2>Step 3: Upload Application Package Documents</h2>
             <p className="mb-4">
               Please upload the following required documents to complete your application.
             </p>
 
             <div className="form-section_application">
-              <h2 className="subtitle-orange">2.1 Provider Application Form</h2>
-
-              <div className="info-box_application">
-                <h4>
-                  <i className="fa fa-download" /> Download the Application Form
-                </h4>
-                <p>
-                  Download the official WorkSafeBC Provider Application Form, fill it out,
-                  and upload the completed form below.
-                </p>
-                <a
-                  href="https://www.worksafebc.com/resources/health-safety/forms/asbestos-abatement-training-provider-application-form?lang=en&direct="
-                  target="_blank"
-                  rel="noreferrer"
-                >
-                  <i className="fa fa-external-link" /> Asbestos abatement training:
-                  Provider application form | WorkSafeBC
-                </a>
-              </div>
-
-              <label className="upload-label_application">
-                Upload Completed Provider Application Form{" "}
-                <span className="text-danger">*</span>
-              </label>
-              <p className="upload-description_application">PDF format, maximum 10MB</p>
-
-              <div
-                className={`file-upload-area_application ${
-                  dragProviderForm ? "dragover_application" : ""
-                }`}
-                onClick={() => providerApplicationFormRef.current?.click()}
-                onDragOver={(e) => {
-                  e.preventDefault();
-                  setDragProviderForm(true);
-                }}
-                onDragLeave={(e) => {
-                  e.preventDefault();
-                  setDragProviderForm(false);
-                }}
-                onDrop={(e) => {
-                  e.preventDefault();
-                  setDragProviderForm(false);
-                  handleSinglePackageFile(
-                    e.dataTransfer.files?.[0],
-                    setProviderApplicationForm,
-                    providerApplicationFormRef
-                  );
-                }}
-              >
-                <i className="fa fa-upload fa-2x mb-2 upload-icon_application" />
-                <p>
-                  <strong>Click to select file</strong> or drag and drop
-                </p>
-              </div>
-
-              <input
-                ref={providerApplicationFormRef}
-                type="file"
-                accept=".pdf,application/pdf"
-                style={{ display: "none" }}
-                onChange={(e) =>
-                  handleSinglePackageFile(
-                    e.target.files?.[0],
-                    setProviderApplicationForm,
-                    providerApplicationFormRef
-                  )
-                }
-              />
-
-              {renderSingleSelectedFile(providerApplicationForm, () => {
-                setProviderApplicationForm(null);
-                if (providerApplicationFormRef.current) {
-                  providerApplicationFormRef.current.value = "";
-                }
-              })}
-            </div>
-
-            <div className="form-section_application">
-              <h2 className="subtitle-orange">2.2 Course Outline and/or Training Agenda</h2>
+              <div className="form-section_application">
+              <h2 className="subtitle-orange">3.1 Course Outline and/or Training Agenda</h2>
 
               <div className="info-box_application">
                 <h4>
@@ -686,9 +617,9 @@ export default function Application() {
                 }
               })}
             </div>
-
+            </div>
             <div className="form-section_application">
-              <h2 className="subtitle-orange">2.3 Administration Document</h2>
+              <h2 className="subtitle-orange">3.2 Administration Document</h2>
 
               <div className="info-box_application">
                 <h4>
@@ -781,9 +712,9 @@ export default function Application() {
               <button
                 type="button"
                 className="btn btn-outline-blue btn-lg"
-                onClick={backToCurriculum}
+                onClick={backToProviderInfo}
               >
-                <i className="fa fa-arrow-left" /> Back to Curriculum
+                <i className="fa fa-arrow-left" /> Back to Provider Info
               </button>
               <button
                 type="button"

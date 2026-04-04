@@ -2,9 +2,8 @@ import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { onAuthStateChanged, signOut } from "firebase/auth";
 import { auth } from "../firebase/firebase";
+import { API_BASE_URL } from "../../config/constants";
 import "../styles/applicantindex.css";
-
-const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:3000";
 
 function formatDate(ts) {
   if (!ts) return "—";
@@ -76,7 +75,7 @@ export default function ApplicantIndex() {
     setError("");
 
     try {
-      const response = await fetch(`${API_BASE}/api/applications/my-applications`, {
+      const response = await fetch(`${API_BASE_URL}/api/applications/my-applications`, {
         headers: {
           Authorization: `Bearer ${authToken}`,
         },
@@ -109,7 +108,7 @@ export default function ApplicantIndex() {
     setExpandedVersions({});
 
     try {
-      const response = await fetch(`${API_BASE}/api/applications/my-applications/${id}`, {
+      const response = await fetch(`${API_BASE_URL}/api/applications/my-applications/${id}`, {
         headers: {
           Authorization: `Bearer ${authToken}`,
         },

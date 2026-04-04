@@ -2,11 +2,8 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { onAuthStateChanged } from "firebase/auth";
 import { auth } from "../firebase/firebase";
+import { MAX_FILE_SIZE_MB, MAX_CURRICULUM_FILES, API_BASE_URL } from "../../config/constants";
 import "../styles/application.css";
-
-const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:3000";
-const MAX_FILE_SIZE = 10 * 1024 * 1024;
-const MAX_CURRICULUM_FILES = 10;
 
 function formatMB(bytes) {
   return (bytes / 1024 / 1024).toFixed(2);
@@ -81,8 +78,8 @@ export default function Application() {
     if (file.type !== "application/pdf" && !file.name.toLowerCase().endsWith(".pdf")) {
       return `File "${file.name}" is not a PDF.`;
     }
-    if (file.size > MAX_FILE_SIZE) {
-      return `File "${file.name}" exceeds 10MB.`;
+    if (file.size > (MAX_FILE_SIZE_MB * 1024 * 1024)) {
+      return `File "${file.name}" exceeds ${MAX_FILE_SIZE_MB}MB.`;
     }
     return null;
   }
@@ -167,7 +164,7 @@ export default function Application() {
         formData.append("pdfs", file);
       });
 
-      const response = await fetch(`${API_BASE}/api/applications/analyze`, {
+      const response = await fetch(`${API_BASE_URL}/api/applications/analyze`, {
         method: "POST",
         headers: {
           Authorization: `Bearer ${token}`,
@@ -254,7 +251,7 @@ export default function Application() {
       formData.append("applicationPackageFiles", courseOutline);
       formData.append("applicationPackageFiles", administrationDocument);
 
-      const response = await fetch(`${API_BASE}/api/applications/submit`, {
+      const response = await fetch(`${API_BASE_URL}/api/applications/submit`, {
         method: "POST",
         headers: {
           Authorization: `Bearer ${token}`,

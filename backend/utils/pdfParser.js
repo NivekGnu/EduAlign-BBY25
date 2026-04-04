@@ -130,7 +130,7 @@ function isValidPDF(buffer) {
  * @returns {string} File size in MB with 2 decimal places
  */
 function getFileSizeMB(buffer) {
-  return (buffer.length / (1024 * 1024)).toFixed(2); //Byte to MB conversion
+  return (buffer.length / (1024 * 1024)).toFixed(2); // Byte to MB conversion
 }
 
 module.exports = {

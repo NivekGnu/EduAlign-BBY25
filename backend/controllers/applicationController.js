@@ -10,6 +10,7 @@ const { uploadMultipleToStorage, getSignedUrl } = require('../utils/firebaseStor
 const { extractTextFromMultiplePDFs, isValidPDF, getFileSizeMB } = require('../utils/pdfParser');
 const { analyzeCurriculum, getLevel1Competencies } = require('../utils/groqAnalyzer');
 const { fillAndUploadLevel1Excel } = require('../utils/excelFiller');
+const { APPLICATION_PACKAGE_FILES } = require('../config/constants');
 const fs = require('fs');
 
 /**
@@ -20,8 +21,8 @@ const fs = require('fs');
  * @param {string} req.body.organizationName - Training organization name
  * @param {string} [req.body.email] - Contact email (optional if authenticated)
  * @param {string} [req.body.analysisResults] - Pre-analyzed results (JSON, optional)
- * @param {Array} req.files.pdfs - Curriculum PDFs (max 10)
- * @param {Array} req.files.applicationPackageFiles - Package files (exactly 3)
+ * @param {Array} req.files.pdfs - Curriculum PDFs
+ * @param {Array} req.files.applicationPackageFiles - Package files
  * @param {string} req.user.uid - User's Firebase UID
  * @param {string} req.user.email - User's email
  * @returns {{ success: boolean, applicationId: string, application: Object }} Created application
@@ -52,10 +53,10 @@ exports.submitApplication = async (req, res) => {
     }
 
     // Check for package files
-    if (!applicationPackageFiles || applicationPackageFiles.length !== 3) {
+    if (!applicationPackageFiles || applicationPackageFiles.length !== APPLICATION_PACKAGE_FILES) {
       return res.status(400).json({
         success: false,
-        error: 'Exactly 3 package files required (Provider Form, Course Outline, Admin Doc)'
+        error: `Exactly ${APPLICATION_PACKAGE_FILES} package files required (Provider Form, Course Outline, Admin Doc)`
       });
     }
     
@@ -233,7 +234,7 @@ exports.submitApplication = async (req, res) => {
  * 
  * @param {string} req.body.providerName - Provider name (for logging)
  * @param {string} req.body.organizationName - Organization name (for logging)
- * @param {Array} req.files - Curriculum PDFs (max 10)
+ * @param {Array} req.files - Curriculum PDFs 
  * @returns {{ success: boolean, analysis: Object }} Analysis results with mappings and missing criteria
  * @throws {400} Missing fields or no files
  * @throws {500} PDF validation or AI analysis failure
@@ -464,8 +465,8 @@ exports.getMyApplicationDetails = async (req, res) => {
  * @param {string} req.params.id - Application Firestore document ID
  * @param {string} req.user.uid - User's Firebase UID
  * @param {string} [req.body.analysisResults] - Pre-analyzed results (JSON, optional)
- * @param {Array} req.files.pdfs - Curriculum PDFs (max 10)
- * @param {Array} req.files.applicationPackageFiles - Package files (exactly 3)
+ * @param {Array} req.files.pdfs - Curriculum PDFs
+ * @param {Array} req.files.applicationPackageFiles - Application Package files
  * @returns {{ success: boolean, applicationId: string, version: number, missingCriteria: Array, filesCount: number }} Revision result
  * @throws {400} No files or invalid file count
  * @throws {403} Not application owner
@@ -489,10 +490,10 @@ exports.reviseApplication = async (req, res) => {
     }
 
     // Check for package files
-    if (!applicationPackageFiles || applicationPackageFiles.length !== 3) {
+    if (!applicationPackageFiles || applicationPackageFiles.length !== APPLICATION_PACKAGE_FILES) {
       return res.status(400).json({
         success: false,
-        error: 'Exactly 3 package files required (Provider Form, Course Outline, Admin Doc)'
+        error: `Exactly ${APPLICATION_PACKAGE_FILES} package files required (Provider Form, Course Outline, Admininstration Document)`
       });
     }
     
@@ -518,7 +519,7 @@ exports.reviseApplication = async (req, res) => {
     console.log(`New Version: ${application.currentVersion + 1}`);
     console.log(`Files: ${curriculumFiles.length} PDFs`);
     curriculumFiles.forEach((file, idx) => {
-      console.log(`  ${idx + 1}. ${file.originalname}`);
+      console.log(`${idx + 1}. ${file.originalname}`);
     });
     console.log('');
     

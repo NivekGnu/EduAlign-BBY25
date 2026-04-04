@@ -19,7 +19,7 @@ const MAX_INPUT_CHARACTERS = 10000;
 /**
  * Maximum tokens for AI response
  */
-const MAX_RESPONSE_TOKENS = 10000;
+const MAX_RESPONSE_TOKENS = 5000;
 
 /**
  * Maximum number of curriculum PDF files allowed per application.

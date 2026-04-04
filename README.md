@@ -54,7 +54,7 @@ MAX_FILE_SIZE_MB = 10              // Maximum file size (10MB)
 MAX_CURRICULUM_FILES = 10          // Maximum curriculum PDFs (1-10)
 APPLICATION_PACKAGE_FILES = 3      // Required package files (exactly 3)
 MAX_INPUT_CHARACTERS = 10000       // AI input limit (10k chars, increase for production eg. 100k)
-MAX_RESPONSE_TOKENS = 10000        // AI response limit 
+MAX_RESPONSE_TOKENS = 5000        // AI response limit 
 ```
 
 ### **Frontend** (`frontend/src/config/constants.js`)
@@ -226,8 +226,8 @@ Applicant uploads revised curriculum, creates new version (preserves history)
 ## Production Deployment
 
 1. Upgrade to paid Groq plan
-2. Increase `MAX_INPUT_CHARACTERS` to 50,000-100,000
-3. Increase `MAX_RESPONSE_TOKENS` to 50,000-100,000
+2. Increase `MAX_INPUT_CHARACTERS` to 50000-100000
+3. Increase `MAX_RESPONSE_TOKENS` to 25000-50000
 4. Configure CORS for production domain
 5. Set `VITE_API_BASE_URL` to production API URL
 

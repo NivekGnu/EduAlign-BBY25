@@ -78,7 +78,7 @@ export default function ApplicationRevise() {
     if (file.type !== "application/pdf" && !file.name.toLowerCase().endsWith(".pdf")) {
       return `File "${file.name}" is not a PDF.`;
     }
-    if (file.size > (MAX_FILE_SIZE * 1024 * 1024)) {
+    if (file.size > (MAX_FILE_SIZE_MB * 1024 * 1024)) {
       return `File "${file.name}" exceeds ${MAX_FILE_SIZE_MB}MB.`;
     }
     return null;
@@ -400,7 +400,7 @@ export default function ApplicationRevise() {
                     <p>
                       <strong>Click to select file</strong> or drag and drop here
                     </p>
-                    <p className="text-muted">PDF format, maximum 10MB per file, up to 10 files</p>
+                    <p className="text-muted">PDF format, maximum {MAX_FILE_SIZE_MB}MB per file, up to {MAX_CURRICULUM_FILES} files</p>
                   </div>
 
                   <input
@@ -526,7 +526,7 @@ export default function ApplicationRevise() {
               <label className="upload-label_applicationrevise">
                 Upload Completed Provider Application Form <span className="text-danger">*</span>
               </label>
-              <p className="upload-description_applicationrevise">PDF format, maximum 10MB</p>
+              <p className="upload-description_applicationrevise">PDF format, maximum {MAX_FILE_SIZE_MB}MB</p>
 
               <div
                 className={`file-upload-area_applicationrevise ${
@@ -595,7 +595,7 @@ export default function ApplicationRevise() {
               <label className="upload-label_applicationrevise">
                 Upload Course Outline <span className="text-danger">*</span>
               </label>
-              <p className="upload-description_applicationrevise">PDF format, maximum 10MB</p>
+              <p className="upload-description_applicationrevise">PDF format, maximum {MAX_FILE_SIZE_MB}MB</p>
 
               <div
                 className={`file-upload-area_applicationrevise ${
@@ -683,7 +683,7 @@ export default function ApplicationRevise() {
               <label className="upload-label_applicationrevise">
                 Upload Administration Document <span className="text-danger">*</span>
               </label>
-              <p className="upload-description_applicationrevise">PDF format, maximum 10MB</p>
+              <p className="upload-description_applicationrevise">PDF format, maximum {MAX_FILE_SIZE_MB}MB</p>
 
               <div
                 className={`file-upload-area_applicationrevise ${

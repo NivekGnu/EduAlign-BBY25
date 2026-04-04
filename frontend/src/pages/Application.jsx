@@ -430,7 +430,7 @@ export default function Application() {
                       <strong>Click to select file</strong> or drag and drop here
                     </p>
                     <p className="text-muted">
-                      PDF format, maximum 10MB per file, up to 10 files
+                      PDF format, maximum {MAX_FILE_SIZE_MB}MB per file, up to {MAX_CURRICULUM_FILES} files
                     </p>
                   </div>
 
@@ -560,7 +560,7 @@ export default function Application() {
                 Upload Completed Provider Application Form{" "}
                 <span className="text-danger">*</span>
               </label>
-              <p className="upload-description_application">PDF format, maximum 10MB</p>
+              <p className="upload-description_application">PDF format, maximum {MAX_FILE_SIZE_MB}MB</p>
 
               <div
                 className={`file-upload-area_application ${
@@ -631,7 +631,7 @@ export default function Application() {
               <label className="upload-label_application">
                 Upload Course Outline <span className="text-danger">*</span>
               </label>
-              <p className="upload-description_application">PDF format, maximum 10MB</p>
+              <p className="upload-description_application">PDF format, maximum {MAX_FILE_SIZE_MB}MB</p>
 
               <div
                 className={`file-upload-area_application ${
@@ -721,7 +721,7 @@ export default function Application() {
               <label className="upload-label_application">
                 Upload Administration Document <span className="text-danger">*</span>
               </label>
-              <p className="upload-description_application">PDF format, maximum 10MB</p>
+              <p className="upload-description_application">PDF format, maximum {MAX_FILE_SIZE_MB}MB</p>
 
               <div
                 className={`file-upload-area_application ${

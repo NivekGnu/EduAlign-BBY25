@@ -1,9 +1,21 @@
-// Authentication middleware for routes
-// for verifying user is logged in, or verifying user has reviewer role
+/**
+ * @fileoverview Authentication Middleware
+ * 
+ * Provides authentication and authorization middleware for Express routes.
+ * - requireAuth: Verifies Firebase ID token and attaches user to request
+ * - requireReviewerRole: Ensures authenticated user has "reviewer" role
+ */
 
 const { admin } = require('../utils/firebase');
 
-// requires user to be logged in
+/**
+ * Verify user is authenticated with valid Firebase token.
+ * Decodes JWT token and attaches user info to req.user.
+ * 
+ * @param {string} req.headers.authorization - Bearer token from Firebase Auth
+ * @returns {void} Attaches req.user = { uid, email, role } and calls next()
+ * @throws {401} No token provided or invalid token
+ */
 async function requireAuth(req, res, next) {
   try {
     const authHeader = req.headers.authorization;
@@ -27,7 +39,15 @@ async function requireAuth(req, res, next) {
   }
 }
 
-// requires user to have role reviewer
+/**
+ * Verify user has "reviewer" role.
+ * Must be used after requireAuth middleware.
+ * 
+ * @param {Object} req.user - User object from requireAuth middleware
+ * @param {string} req.user.role - User's role from Firebase custom claims
+ * @returns {void} Calls next() if user is reviewer
+ * @throws {403} User does not have reviewer role
+ */
 function requireReviewerRole(req, res, next) {
   if (!req.user || req.user.role !== 'reviewer') {
     return res.status(403).json({ success: false, error: 'Reviewer access required' });

@@ -1,5 +1,14 @@
-// this code is only used in the terminal
-// allows us to change a user's role from applicant to reviewer
+/**
+ * @fileoverview Role Management CLI Script
+ * 
+ * Command-line utility to promote users from "applicant" to "reviewer" role.
+ * This is the only way to grant reviewer access (cannot be done via API).
+ * 
+ * Usage: node utils/manageRole.js <email>
+ * Example: node utils/manageRole.js admin@example.com
+ * 
+ * Security: Only run this script manually with admin access to server.
+ */
 
 const { admin } = require('./firebase');
 require('dotenv').config();

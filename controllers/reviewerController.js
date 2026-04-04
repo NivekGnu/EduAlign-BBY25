@@ -1,21 +1,30 @@
+/**
+ * @fileoverview Reviewer Controller
+ * 
+ * Handles reviewer dashboard operations: view applications, update status, access details.
+ * All endpoints require authentication + reviewer role.
+ * 
+ * Status values: "Unreviewed" | "Incomplete" | "Approved"
+ */
+
 const { getApplicationById, getAllApplications, updateApplication, getStats } = require('../utils/firestoreService');
 const { getSignedUrl } = require('../utils/firebaseStorage');
 
 /**
- * Get all applications for reviewer dashboard
- * Excludes Draft applications (incomplete submissions)
+ * Get all submitted applications for reviewer dashboard.
+ * 
+ * @returns {{ success: boolean, stats: Object, applications: Array }} Applications with statistics
+ * @throws {500} Database query failure
  */
 exports.getApplications = async (req, res) => {
   try {
     const applications = await getAllApplications();
-    // Filter out Draft applications - reviewers should only see submitted ones
-    const submittedApplications = applications.filter(app => app.status !== 'Draft');
     const stats = await getStats();
     
     res.json({
       success: true,
       stats,
-      applications: submittedApplications
+      applications
     });
     
   } catch (error) {
@@ -27,14 +36,21 @@ exports.getApplications = async (req, res) => {
 };
 
 /**
- * Update application status
+ * Update application status.
+ * Sets reviewedDate timestamp when status is "Approved".
+ * 
+ * @param {string} req.params.id - Application Firestore document ID
+ * @param {string} req.body.status - New status: "Unreviewed" | "Incomplete" | "Approved"
+ * @returns {{ success: boolean, application: Object }} Updated application
+ * @throws {400} Invalid status value
+ * @throws {404} Application not found
+ * @throws {500} Database update failure
  */
 exports.updateStatus = async (req, res) => {
   try {
     const { id } = req.params;
-    const { status, notes } = req.body;
+    const { status } = req.body;
     
-    // Validate status
     const validStatuses = ['Unreviewed', 'Incomplete', 'Approved'];
     if (!validStatuses.includes(status)) {
       return res.status(400).json({
@@ -53,10 +69,6 @@ exports.updateStatus = async (req, res) => {
     }
 
     const updateData = { status };
-
-    if (notes) {
-      updateData.reviewerNotes = notes;
-    }
 
     if (status === 'Approved') {
       updateData.reviewedDate = new Date();
@@ -80,8 +92,13 @@ exports.updateStatus = async (req, res) => {
 };
 
 /**
- * Get full application details with signed URLs for downloads
- * Includes curriculum files, package files, and Excel files
+ * Get full application details with all versions and downloadable files.
+ * Generates signed URLs (valid 1 day) for PDFs and Excel files.
+ * 
+ * @param {string} req.params.id - Application Firestore document ID
+ * @returns {{ success: boolean, application: Object, versions: Array }} Complete application data
+ * @throws {404} Application not found
+ * @throws {500} Database or storage failure
  */
 exports.getApplicationDetails = async (req, res) => {
   try {
@@ -155,7 +172,6 @@ exports.getApplicationDetails = async (req, res) => {
         submittedDate: application.submittedDate,
         lastRevised: application.lastRevised,
         reviewedDate: application.reviewedDate,
-        reviewerNotes: application.reviewerNotes,
         currentVersion: application.currentVersion || 1
       },
       versions: versions

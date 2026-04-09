@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { onAuthStateChanged } from "firebase/auth";
 import { auth } from "../firebase/firebase";
-import { MAX_FILE_SIZE_MB, MAX_CURRICULUM_FILES, API_BASE_URL } from "../../config/constants";
+import { MAX_FILE_SIZE_MB, MAX_CURRICULUM_FILES, API_BASE_URL } from "../config/constants";
 import "../styles/applicationrevise.css";
 
 function formatMB(bytes) {

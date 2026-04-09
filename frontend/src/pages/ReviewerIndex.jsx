@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { onAuthStateChanged, signOut } from "firebase/auth";
 import { auth } from "../firebase/firebase";
-import { API_BASE_URL } from "../../config/constants";
+import { API_BASE_URL } from "../config/constants";
 import "../styles/reviewerindex.css";
 
 function formatDate(ts) {

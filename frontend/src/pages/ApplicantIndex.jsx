@@ -1,10 +1,23 @@
+/**
+ * @fileoverview Applicant Dashboard
+ * 
+ * Main dashboard for training provider applicants showing application statistics,
+ * list of submitted applications, and modal for viewing application details.
+ */
+
 import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { onAuthStateChanged, signOut } from "firebase/auth";
 import { auth } from "../firebase/firebase";
-import { API_BASE_URL } from "../../config/constants";
+import { API_BASE_URL } from "../config/constants";
 import "../styles/applicantindex.css";
 
+/**
+ * Format Firestore timestamp to readable date string
+ * 
+ * @param {Object|Date} ts - Firestore timestamp with _seconds or JS Date
+ * @returns {string} Formatted date (e.g., "Jan 15, 2025") or "—" if invalid
+ */
 function formatDate(ts) {
   if (!ts) return "—";
   const date = ts._seconds ? new Date(ts._seconds * 1000) : new Date(ts);
@@ -17,6 +30,13 @@ function formatDate(ts) {
       });
 }
 
+/**
+ * ApplicantIndex - Dashboard for training provider applicants
+ * 
+ * Displays application statistics, list of submitted applications with view/revise
+ * actions, and modal dialog for viewing detailed application information including
+ * version history, files, and competency mappings.
+ */
 export default function ApplicantIndex() {
   const navigate = useNavigate();
 
@@ -70,6 +90,12 @@ export default function ApplicantIndex() {
     loadMyApplications();
   }, [authToken]);
 
+  /**
+   * Fetch all applications for authenticated user
+   * 
+   * @async
+   * @throws {Error} If API request fails
+   */
   async function loadMyApplications() {
     setLoading(true);
     setError("");
@@ -95,11 +121,20 @@ export default function ApplicantIndex() {
     }
   }
 
+  /**
+   * Sign out user and redirect to landing page
+   */
   async function handleLogout() {
     await signOut(auth);
     navigate("/", { replace: true });
   }
 
+  /**
+   * View application details in modal with version history
+   * 
+   * @async
+   * @param {string} id - Application Firestore document ID
+   */
   async function viewApplication(id) {
     setModalOpen(true);
     setModalLoading(true);
@@ -142,6 +177,11 @@ export default function ApplicantIndex() {
     }
   }
 
+  /**
+   * Toggle expansion state of version accordion
+   * 
+   * @param {number} versionNumber - Version number to toggle
+   */
   function toggleVersion(versionNumber) {
     setExpandedVersions((prev) => ({
       ...prev,
@@ -341,6 +381,14 @@ export default function ApplicantIndex() {
   );
 }
 
+/**
+ * Modal content for displaying application details
+ * 
+ * @param {Object} props
+ * @param {Object} props.data - Application and versions data
+ * @param {Object} props.expandedVersions - Version expansion state
+ * @param {Function} props.toggleVersion - Toggle version expansion
+ */
 function ApplicantModalContent({ data, expandedVersions, toggleVersion }) {
   const app = data.application;
   const versions = [...(data.versions || [])].sort((a, b) => b.version - a.version);

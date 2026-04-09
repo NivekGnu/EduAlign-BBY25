@@ -37,6 +37,9 @@ exports.submitApplication = async (req, res) => {
     const email = req.user ? req.user.email : req.body.email;
     const curriculumFiles = req.files['pdfs'] || [];
     const applicationPackageFiles = req.files['applicationPackageFiles'] || [];
+
+    curriculumFiles.forEach(file => tempFilePaths.push(file.path));
+    applicationPackageFiles.forEach(file => tempFilePaths.push(file.path));
     
     if (!providerName || !organizationName || !email) {
       return res.status(400).json({
@@ -80,8 +83,7 @@ exports.submitApplication = async (req, res) => {
       }
       
       curriculumBuffers.push(buffer);
-      tempFilePaths.push(file.path);
-      console.log(`  ${file.originalname}: ${getFileSizeMB(buffer)} MB`);
+      console.log(`${file.originalname}: ${getFileSizeMB(buffer)} MB`);
     }
 
     // Read all package files
@@ -94,8 +96,7 @@ exports.submitApplication = async (req, res) => {
       }
       
       applicationPackageBuffers.push(buffer);
-      tempFilePaths.push(file.path);
-      console.log(`  ${file.originalname}: ${getFileSizeMB(buffer)} MB`);
+      console.log(`${file.originalname}: ${getFileSizeMB(buffer)} MB`);
     }
 
     let userId = null;
@@ -191,10 +192,6 @@ exports.submitApplication = async (req, res) => {
     console.log('========================================');
     console.log('');
     
-    tempFilePaths.forEach(path => {
-      if (fs.existsSync(path)) fs.unlinkSync(path);
-    });
-    
     res.json({
       success: true,
       applicationId: updatedApp.applicationId,
@@ -217,13 +214,17 @@ exports.submitApplication = async (req, res) => {
     console.error('Error submitting application:', error);
     console.error('');
     
-    tempFilePaths.forEach(path => {
-      if (fs.existsSync(path)) fs.unlinkSync(path);
-    });
-    
     res.status(500).json({
       success: false,
       error: error.message || 'Failed to submit application'
+    });
+  } finally {
+    tempFilePaths.forEach(path => {
+      try {
+        if (fs.existsSync(path)) fs.unlinkSync(path);
+      } catch (err) {
+        console.error(`Failed to delete temp file: ${path}`, err);
+      }
     });
   }
 };
@@ -245,6 +246,10 @@ exports.analyzeCurriculum = async (req, res) => {
   try {
     const { providerName, organizationName } = req.body;
     const curriculumFiles = req.files;
+
+    if (curriculumFiles) {
+      curriculumFiles.forEach(file => tempFilePaths.push(file.path));
+    }
     
     if (!providerName || !organizationName) {
       return res.status(400).json({
@@ -266,7 +271,7 @@ exports.analyzeCurriculum = async (req, res) => {
     console.log(`Organization: ${organizationName}`);
     console.log(`Files: ${curriculumFiles.length} PDFs`);
     curriculumFiles.forEach((file, idx) => {
-      console.log(`  ${idx + 1}. ${file.originalname}`);
+      console.log(`${idx + 1}. ${file.originalname}`);
     });
     console.log('');
     
@@ -282,8 +287,7 @@ exports.analyzeCurriculum = async (req, res) => {
       
       curriculumBuffers.push(buffer);
       filenames.push(file.originalname);
-      tempFilePaths.push(file.path);
-      console.log(`  ${file.originalname}: ${getFileSizeMB(buffer)} MB`);
+      console.log(`${file.originalname}: ${getFileSizeMB(buffer)} MB`);
     }
     
     const pdfData = await extractTextFromMultiplePDFs(curriculumBuffers, filenames);
@@ -295,10 +299,6 @@ exports.analyzeCurriculum = async (req, res) => {
     console.log('Analysis complete (not saved)');
     console.log('========================================');
     console.log('');
-    
-    tempFilePaths.forEach(path => {
-      if (fs.existsSync(path)) fs.unlinkSync(path);
-    });
     
     res.json({
       success: true,
@@ -316,13 +316,17 @@ exports.analyzeCurriculum = async (req, res) => {
     console.error('Error analyzing curriculum:', error);
     console.error('');
     
-    tempFilePaths.forEach(path => {
-      if (fs.existsSync(path)) fs.unlinkSync(path);
-    });
-    
     res.status(500).json({
       success: false,
       error: error.message || 'Failed to analyze curriculum'
+    });
+  } finally {
+    tempFilePaths.forEach(path => {
+      try {
+        if (fs.existsSync(path)) fs.unlinkSync(path);
+      } catch (err) {
+        console.error(`Failed to delete temp file: ${path}`, err);
+      }
     });
   }
 };
@@ -482,6 +486,9 @@ exports.reviseApplication = async (req, res) => {
     const curriculumFiles = req.files['pdfs'] || [];
     const applicationPackageFiles = req.files['applicationPackageFiles'] || [];
     
+    curriculumFiles.forEach(file => tempFilePaths.push(file.path));
+    applicationPackageFiles.forEach(file => tempFilePaths.push(file.path));
+    
     if (!curriculumFiles || curriculumFiles.length === 0) {
       return res.status(400).json({
         success: false,
@@ -535,8 +542,7 @@ exports.reviseApplication = async (req, res) => {
       
       curriculumBuffers.push(buffer);
       filenames.push(file.originalname);
-      tempFilePaths.push(file.path);
-      console.log(`  ${file.originalname}: ${getFileSizeMB(buffer)} MB`);
+      console.log(`${file.originalname}: ${getFileSizeMB(buffer)} MB`);
     }
 
     // Read all package files
@@ -549,8 +555,7 @@ exports.reviseApplication = async (req, res) => {
       }
       
       applicationPackageBuffers.push(buffer);
-      tempFilePaths.push(file.path);
-      console.log(`  ${file.originalname}: ${getFileSizeMB(buffer)} MB`);
+      console.log(`${file.originalname}: ${getFileSizeMB(buffer)} MB`);
     }
     
     const storageResults = await uploadMultipleToStorage(curriculumBuffers, filenames, application.id);
@@ -619,10 +624,6 @@ exports.reviseApplication = async (req, res) => {
     console.log('===================================');
     console.log('');
     
-    tempFilePaths.forEach(path => {
-      if (fs.existsSync(path)) fs.unlinkSync(path);
-    });
-    
     res.json({
       success: true,
       applicationId: updatedApp.applicationId,
@@ -634,13 +635,17 @@ exports.reviseApplication = async (req, res) => {
   } catch (error) {
     console.error('Error revising application:', error);
     
-    tempFilePaths.forEach(path => {
-      if (fs.existsSync(path)) fs.unlinkSync(path);
-    });
-    
     res.status(500).json({
       success: false,
       error: error.message || 'Failed to revise application'
+    });
+  } finally {
+    tempFilePaths.forEach(path => {
+      try {
+        if (fs.existsSync(path)) fs.unlinkSync(path);
+      } catch (err) {
+        console.error(`Failed to delete temp file: ${path}`, err);
+      }
     });
   }
 };

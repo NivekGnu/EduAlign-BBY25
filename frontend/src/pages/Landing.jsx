@@ -1,6 +1,18 @@
+/**
+ * @fileoverview Landing Page
+ * 
+ * Public landing page with login/signup options for training providers
+ * and WorkSafeBC reviewers.
+ */
+
 import { Link } from "react-router-dom";
 import "../styles/landing.css";
 
+/**
+ * Landing - Public landing page
+ * 
+ * Entry point for unauthenticated users with options to login or sign up.
+ */
 export default function Landing() {
   return (
     <div className="wsbc-page_landing-page">

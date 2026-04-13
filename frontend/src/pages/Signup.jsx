@@ -1,3 +1,10 @@
+/**
+ * @fileoverview User Registration Page
+ * 
+ * Account creation page for new users. All users are assigned the applicant role
+ * by default. Reviewer role must be assigned manually via CLI after account creation.
+ */
+
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { createUserWithEmailAndPassword, updateProfile } from "firebase/auth";
@@ -5,6 +12,12 @@ import { auth } from "../firebase/firebase"; // adjust if your path is different
 import { API_BASE_URL } from "../config/constants";
 import "../styles/signup.css";
 
+/**
+ * Signup - User registration page
+ * 
+ * Handles new account creation, role assignment via backend, and redirects
+ * to appropriate dashboard based on user role.
+ */
 export default function Signup() {
   const navigate = useNavigate();
 
@@ -16,6 +29,16 @@ export default function Signup() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
+  /**
+   * Handle signup form submission
+   * 
+   * Creates Firebase user, sets display name, calls backend to assign default
+   * applicant role, then redirects to applicant dashboard. Reviewer role must
+   * be assigned manually via CLI.
+   * 
+   * @async
+   * @param {Event} e - Form submit event
+   */
   async function handleSubmit(e) {
     e.preventDefault();
     setError("");

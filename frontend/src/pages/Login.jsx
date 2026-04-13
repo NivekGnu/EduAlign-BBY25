@@ -1,9 +1,22 @@
+/**
+ * @fileoverview Login Page
+ * 
+ * Authentication page for users to sign in with email and password.
+ * Redirects to appropriate dashboard based on user role.
+ */
+
 import { useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { signInWithEmailAndPassword } from "firebase/auth";
 import { auth } from "../firebase/firebase";
 import "../styles/login.css";
 
+/**
+ * Login - User authentication page
+ * 
+ * Handles user sign-in and redirects to applicant or reviewer dashboard
+ * based on Firebase custom claims role.
+ */
 export default function Login() {
   const navigate = useNavigate();
 
@@ -18,6 +31,15 @@ export default function Login() {
     return alert.type === "error" ? "alert alert-error" : "alert alert-success";
   }, [alert]);
 
+  /**
+   * Handle login form submission
+   * 
+   * Authenticates user with Firebase and redirects to appropriate dashboard
+   * based on role (reviewer or applicant).
+   * 
+   * @async
+   * @param {Event} e - Form submit event
+   */
   async function handleSubmit(e) {
     e.preventDefault();
     setAlert({ type: "", message: "" });

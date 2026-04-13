@@ -1,3 +1,10 @@
+/**
+ * @fileoverview Application Revision Form
+ * 
+ * Form for training providers to revise incomplete applications by uploading
+ * new curriculum and application package documents with re-analysis.
+ */
+
 import { useEffect, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { onAuthStateChanged } from "firebase/auth";
@@ -5,10 +12,22 @@ import { auth } from "../firebase/firebase";
 import { MAX_FILE_SIZE_MB, MAX_CURRICULUM_FILES, API_BASE_URL } from "../config/constants";
 import "../styles/applicationrevise.css";
 
+/**
+ * Convert bytes to megabytes with 2 decimal places
+ * 
+ * @param {number} bytes - File size in bytes
+ * @returns {string} Size in MB (e.g., "2.45")
+ */
 function formatMB(bytes) {
   return (bytes / 1024 / 1024).toFixed(2);
 }
 
+/**
+ * ApplicationRevise - Form for revising incomplete applications
+ * 
+ * Allows applicants to upload revised curriculum and package documents for
+ * incomplete applications, with new AI analysis and version creation.
+ */
 export default function ApplicationRevise() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -73,6 +92,12 @@ export default function ApplicationRevise() {
     return () => unsub();
   }, [navigate, searchParams]);
 
+  /**
+   * Validate PDF file meets size and type requirements
+   * 
+   * @param {File} file - File object to validate
+   * @returns {string|null} Error message or null if valid
+   */
   function validatePdfFile(file) {
     if (!file) return "No file selected.";
     if (file.type !== "application/pdf" && !file.name.toLowerCase().endsWith(".pdf")) {
@@ -84,6 +109,14 @@ export default function ApplicationRevise() {
     return null;
   }
 
+  /**
+   * Handle curriculum file uploads with validation
+   * 
+   * Validates each file and enforces maximum file limit. Updates selected
+   * files state and resets analysis results.
+   * 
+   * @param {FileList} files - Files from input or drop event
+   */
   function handleCurriculumFiles(files) {
     setError("");
     if (!files || files.length === 0) return;
@@ -115,11 +148,23 @@ export default function ApplicationRevise() {
     setStep(1);
   }
 
+  /**
+   * Remove curriculum file from selection
+   * 
+   * @param {number} indexToRemove - Index of file to remove
+   */
   function removeCurriculumFile(indexToRemove) {
     setSelectedFiles((prev) => prev.filter((_, index) => index !== indexToRemove));
     setAnalysisResults(null);
   }
 
+  /**
+   * Handle single package file upload with validation
+   * 
+   * @param {File} file - File to validate and set
+   * @param {Function} setter - State setter function
+   * @param {Object} inputRef - React ref to input element
+   */
   function handleSinglePackageFile(file, setter, inputRef) {
     setError("");
     const validationError = validatePdfFile(file);
@@ -132,6 +177,15 @@ export default function ApplicationRevise() {
     setter(file);
   }
 
+   /**
+   * Analyze revised curriculum PDFs with AI and display preview
+   * 
+   * Sends revised curriculum files to backend for AI analysis of competency
+   * coverage. Results include missing criteria and are displayed before final submission.
+   * 
+   * @async
+   * @throws {Error} If API request fails
+   */
   async function analyzeCurriculum() {
     setError("");
 
@@ -182,6 +236,9 @@ export default function ApplicationRevise() {
     }
   }
 
+   /**
+   * Reset form to re-analyze curriculum with different files
+   */
   function resetFormForReanalyze() {
     setAnalysisResults(null);
     setSelectedFiles([]);
@@ -189,6 +246,11 @@ export default function ApplicationRevise() {
     if (curriculumInputRef.current) curriculumInputRef.current.value = "";
   }
 
+    /**
+   * Proceed to application package upload step
+   * 
+   * Validates that curriculum has been analyzed before continuing.
+   */
   function continueToApplicationPackage() {
     setError("");
 
@@ -201,17 +263,34 @@ export default function ApplicationRevise() {
     window.scrollTo(0, 0);
   }
 
+   /**
+   * Navigate back to curriculum upload step
+   */
   function backToCurriculum() {
     setStep(1);
     window.scrollTo(0, 0);
   }
 
+  /**
+   * Validate all required package files are uploaded
+   * 
+   * @throws {Error} If any required package file is missing
+   */
   function validatePackageFiles() {
     if (!providerApplicationForm || !courseOutline || !administrationDocument) {
       throw new Error("Please upload all 3 required application package documents.");
     }
   }
 
+   /**
+   * Submit revised application with new curriculum and application package files
+   * 
+   * Validates all files are present, sends revised curriculum and application package documents
+   * to backend with analysis results to create new application version.
+   * 
+   * @async
+   * @throws {Error} If submission fails
+   */ 
   async function submitRevision() {
     setError("");
 
@@ -270,6 +349,13 @@ export default function ApplicationRevise() {
     }
   }
 
+  /**
+   * Render single file display with remove button
+   * 
+   * @param {File} file - File to display
+   * @param {Function} clearFn - Function to call when removing file
+   * @returns {JSX.Element|null} File display element or null
+   */
   function renderSingleSelectedFile(file, clearFn) {
     if (!file) return null;
 

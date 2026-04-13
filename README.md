@@ -132,7 +132,7 @@ node utils/manageRole.js user@example.com
 ## Application Workflow
 
 **1. Submit Application**  
-Applicant uploads curriculum PDFs (1-10) + 3 package files (Provider Form, Course Outline, Admin Doc)
+Applicant uploads curriculum PDFs (1-10) + 3 package files (Provider Form, Course Outline, Administration Document)
 
 **2. AI Analysis**  
 Groq AI maps curriculum to 26 Level 1 competencies, identifies where/how taught/assessed

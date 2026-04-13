@@ -1,9 +1,22 @@
+/**
+ * @fileoverview 404 Not Found Page
+ * 
+ * Error page displayed for invalid routes or unauthorized access attempts.
+ * Provides navigation options based on user authentication state.
+ */
+
 import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { onAuthStateChanged } from "firebase/auth";
 import { auth } from "../firebase/firebase";
 import "../styles/notfound.css";
 
+/**
+ * NotFound - 404 error page
+ * 
+ * Displays customizable error messages based on URL parameters and provides
+ * navigation options that adapt to user's authentication state and role.
+ */
 export default function NotFound() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();

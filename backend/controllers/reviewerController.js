@@ -70,7 +70,7 @@ exports.updateStatus = async (req, res) => {
 
     const updateData = { status };
 
-    if (status === 'Approved') {
+    if (status === 'Incomplete' || status === 'Approved') {
       updateData.reviewedDate = new Date();
     }
 

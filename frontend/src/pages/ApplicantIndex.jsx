@@ -410,6 +410,11 @@ function ApplicantModalContent({ data, expandedVersions, toggleVersion }) {
       <p>
         <strong>Submitted:</strong> {formatDate(app.submittedDate)}
       </p>
+      {app.reviewedDate ? (
+        <p>
+          <strong>Reviewed:</strong> {formatDate(app.reviewedDate)}
+        </p>
+      ) : null}
       {app.lastRevised ? (
         <p>
           <strong>Last Revised:</strong> {formatDate(app.lastRevised)}

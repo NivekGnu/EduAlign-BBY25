@@ -14,7 +14,7 @@ const MAX_FILE_SIZE_MB = 10;
 /**
  * Maximum characters of curriculum text to send to AI
  */
-const MAX_INPUT_CHARACTERS = 10000;
+const MAX_INPUT_CHARACTERS = 50000;
 
 /**
  * Maximum tokens for AI response

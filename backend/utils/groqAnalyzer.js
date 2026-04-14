@@ -9,13 +9,16 @@
  * - Missing criteria: Competencies not found or insufficiently covered
  */
 
-const Groq = require('groq-sdk');
+// const Groq = require('groq-sdk');
 
-const groq = new Groq({ 
-  apiKey: process.env.GROQ_API_KEY
-});
+// const groq = new Groq({ 
+//   apiKey: process.env.GROQ_API_KEY
+// });
 
+const Anthropic = require('@anthropic-ai/sdk');
+const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 const { MAX_INPUT_CHARACTERS, MAX_RESPONSE_TOKENS } = require('../config/constants');
+
 
 /**
  * Analyze curriculum and map to Level 1 competencies using AI.
@@ -33,53 +36,79 @@ const { MAX_INPUT_CHARACTERS, MAX_RESPONSE_TOKENS } = require('../config/constan
  * @throws {Error} Invalid API key
  * @throws {Error} AI analysis failure
  */
+// async function analyzeCurriculum(pdfText, competencies) {
+//   try {
+//     console.log('Starting Groq AI analysis...'); 
+    
+//     const prompt = buildPrompt(pdfText, competencies);
+    
+//     console.log('Sending request to Groq API...');
+    
+//     const completion = await groq.chat.completions.create({
+//       messages: [
+//         {
+//           role: "system",  // controls behavior. 
+//           content: "You are an expert at analyzing training curricula and mapping them to competency frameworks. Always respond with valid JSON only, no markdown or explanations."
+//         },
+//         {
+//           role: "user",  // actual request
+//           content: prompt
+//         }
+//       ],
+//       model: "llama-3.3-70b-versatile", 
+//       temperature: 0.0, // randomness of AI. 0.0 = deterministic, 1.0 = creative. 
+//       max_tokens: MAX_RESPONSE_TOKENS,
+//       response_format: { type: "json_object" }
+//     });
+    
+//     console.log('Response received, parsing...');
+    
+//     const responseText = completion.choices[0].message.content;
+//     const analysis = JSON.parse(responseText);
+    
+//     console.log(`Analysis complete`);
+//     console.log(`Mappings found: ${analysis.mappings ? analysis.mappings.length : 0}`); 
+//     console.log(`Missing criteria: ${analysis.missingCriteria ? analysis.missingCriteria.length : 0}`);
+    
+//     return analysis;
+ 
+//   } catch (error) { 
+//     console.error('Groq analysis error:', error); 
+    
+//     if (error.message.includes('rate limit')) {
+//       throw new Error('Groq API rate limit exceeded. Please wait a moment and try again.');
+//     }
+    
+//     if (error.message.includes('API key')) {
+//       throw new Error('Invalid Groq API key. Please check your configuration.');
+//     }
+    
+//     throw new Error(`AI analysis failed: ${error.message}`);
+//   }
+// }
 async function analyzeCurriculum(pdfText, competencies) {
   try {
-    console.log('Starting Groq AI analysis...'); 
-    
     const prompt = buildPrompt(pdfText, competencies);
-    
-    console.log('Sending request to Groq API...');
-    
-    const completion = await groq.chat.completions.create({
-      messages: [
-        {
-          role: "system",  // controls behavior. 
-          content: "You are an expert at analyzing training curricula and mapping them to competency frameworks. Always respond with valid JSON only, no markdown or explanations."
-        },
-        {
-          role: "user",  // actual request
-          content: prompt
-        }
-      ],
-      model: "llama-3.3-70b-versatile", 
-      temperature: 0.0, // randomness of AI. 0.0 = deterministic, 1.0 = creative. 
+
+    const message = await client.messages.create({
+      model: 'claude-sonnet-4-6', // or claude-sonnet-4-6 for higher quality
       max_tokens: MAX_RESPONSE_TOKENS,
-      response_format: { type: "json_object" }
+      temperature: 0,
+      system: "You are an expert at analyzing training curricula and mapping them to competency frameworks. Always respond with valid JSON only, no markdown, no explanations, no preamble.",
+      messages: [{ role: 'user', content: prompt }]
     });
-    
-    console.log('Response received, parsing...');
-    
-    const responseText = completion.choices[0].message.content;
-    const analysis = JSON.parse(responseText);
-    
-    console.log(`Analysis complete`);
-    console.log(`Mappings found: ${analysis.mappings ? analysis.mappings.length : 0}`); 
-    console.log(`Missing criteria: ${analysis.missingCriteria ? analysis.missingCriteria.length : 0}`);
-    
+
+    // Claude returns content as an array of blocks
+    const responseText = message.content[0].text;
+
+    // Strip accidental code fences just in case
+    const cleaned = responseText.replace(/```json\s*|\s*```/g, '').trim();
+    const analysis = JSON.parse(cleaned);
+
     return analysis;
- 
-  } catch (error) { 
-    console.error('Groq analysis error:', error); 
-    
-    if (error.message.includes('rate limit')) {
-      throw new Error('Groq API rate limit exceeded. Please wait a moment and try again.');
-    }
-    
-    if (error.message.includes('API key')) {
-      throw new Error('Invalid Groq API key. Please check your configuration.');
-    }
-    
+  } catch (error) {
+    if (error.status === 429) throw new Error('Anthropic API rate limit exceeded. Please wait and try again.');
+    if (error.status === 401) throw new Error('Invalid Anthropic API key. Please check your configuration.');
     throw new Error(`AI analysis failed: ${error.message}`);
   }
 }
